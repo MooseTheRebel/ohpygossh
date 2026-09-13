@@ -50,7 +50,6 @@ jobs:
           requires = ["setuptools>=40.8.0", "pybindgen"]
           build-backend = "setuptools.build_meta"
           EOF
-          cp setup_ci.py setup.py
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v4.1.1
@@ -100,7 +99,6 @@ jobs:
         - name: Setup project files
           run: |
               rm -rf poetry.lock pyproject.toml
-              cp setup_ci.py setup.py
 
         - name: install gopy
           run: go install "github.com/go-python/gopy@$(go list -m -f '{{.Version}}' github.com/go-python/gopy)"

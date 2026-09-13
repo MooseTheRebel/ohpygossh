@@ -25,7 +25,6 @@ jobs:
           requires = ["setuptools>=40.8.0", "pybindgen"]
           build-backend = "setuptools.build_meta"
           EOF
-          cp setup_ci.py setup.py
 
       - name: Build wheel
         uses: pypa/cibuildwheel@v4.1.1
