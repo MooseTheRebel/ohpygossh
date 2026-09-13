@@ -18,7 +18,7 @@ Additionally:
 * Under cibuildwheel, each platform build is isolated, so 'gopy build' must be
   invoked from here via a custom build_ext step.
 * For local/manual builds, 'gopy build' is run separately beforehand (see
-  make_and_validate_script.sh), so this script just packages the already-built output.
+  Justfile), so this script just packages the already-built output.
 
 """
 

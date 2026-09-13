@@ -68,7 +68,7 @@ just lint
 # Run the Go test suite
 just test
 
-# Build and validate the wheel: dist/ohpygossh-<version>-py3-none-any.whl
+# Build the Python wheel (produces dist/ohpygossh-*.whl)
 just build
 
 # Remove build artifacts and the virtual environment
