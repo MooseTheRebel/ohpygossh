@@ -71,7 +71,7 @@ jobs:
           CIBW_REPAIR_WHEEL_COMMAND_MACOS: ""
           PYTHON_BINARY_PATH: ${{ env.PYTHON_FOR_BUILD }}
           CIBW_BUILD: "cp3${{ matrix.python3_version }}-*"
-          CIBW_SKIP: "cp36-* cp37-* cp38-* cp39-* cp310-* cp313-* *-musllinux_x86_64"
+          CIBW_SKIP: "cp36-* cp37-* cp38-* cp39-* cp310-* *-musllinux_x86_64"
           CIBW_ENVIRONMENT: >
             PATH=$PATH:/usr/local/go/bin
             GOARCH=${{ matrix.arch_cibw_go[1] }}
@@ -105,7 +105,7 @@ jobs:
         uses: pypa/cibuildwheel@v4.1.1
         env:
           CIBW_BUILD: "cp3*_x86_64 cp3*_aarch64"
-          CIBW_SKIP: "cp36-* cp37-* cp38-* cp39-* cp310-* cp313-* *-musllinux_x86_64"
+          CIBW_SKIP: "cp36-* cp37-* cp38-* cp39-* cp310-* *-musllinux_x86_64"
           CIBW_ARCHS: "native"
           CIBW_ENVIRONMENT: >
             PATH=$PATH:/usr/local/go/bin
@@ -151,7 +151,7 @@ jobs:
         uses: pypa/cibuildwheel@v4.1.1
         env:
           CIBW_BUILD: "cp3*_aarch64"
-          CIBW_SKIP: "cp36-* cp37-* cp38-* cp39-* cp310-* cp313-* *-musllinux_x86_64"
+          CIBW_SKIP: "cp36-* cp37-* cp38-* cp39-* cp310-* *-musllinux_x86_64"
           CIBW_ARCHS: "aarch64"
           CIBW_ENVIRONMENT: >
             PATH=$PATH:/usr/local/go/bin
@@ -196,7 +196,7 @@ jobs:
 #         env:
 #           # CGO_ENABLED: 1
 #           CIBW_BUILD: "cp3*"
-#           CIBW_SKIP: "cp36-* cp37-* cp38-* cp39-* cp310-* cp313-* *-musllinux_x86_64"
+#           CIBW_SKIP: "cp36-* cp37-* cp38-* cp39-* cp310-* *-musllinux_x86_64"
 #           CIBW_ARCHS: "native"
 #           CIBW_ENVIRONMENT: >
 #             GOARCH=amd64

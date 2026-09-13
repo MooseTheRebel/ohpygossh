@@ -7,7 +7,7 @@ authors = ["b-long <b-long@users.noreply.github.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = ">3.11,<3.12"
+python = ">3.11,<=3.14"
 pybindgen = "^0.22.1"
 wheel = ">=0.42,<0.49"
 
