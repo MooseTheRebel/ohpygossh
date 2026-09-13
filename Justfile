@@ -82,7 +82,7 @@ test:
     export PATH="$(brew --prefix go@1.26)/bin:$PATH"
     go test ./...
 
-# Build and validate the Python wheel (produces dist/ohpygossh-*.whl)
+# Build the Python wheel (produces dist/ohpygossh-*.whl)
 #
 # CGO_ENABLED=1 is required for gopy's c-shared build and isn't always the
 # default (e.g. on some Linux/arm64 toolchains); see build-golang-macos.yaml.
@@ -90,11 +90,47 @@ build:
     #!/usr/bin/env bash
     set -euo pipefail
     export PATH="$(brew --prefix go@1.26)/bin:$PATH"
-    CGO_ENABLED=1 ./make_and_validate_script.sh
+
+    rm -rf .venv/ dist/
+
+    POETRY=$(type -p poetry) || { echo "Unable to find 'poetry', it must be installed to continue" >&2; exit 1; }
+    "$POETRY" install --no-root
+
+    if ! [ -f .venv/bin/activate ]; then
+        echo "Error: failed to locate virtual environment" >&2
+        exit 1
+    fi
+    source .venv/bin/activate
+
+    # NOTE: Using 'poetry shell' does not work in place of the above.
+    CGO_ENABLED=1 PATH="$PATH:$HOME/go/bin" gopy build -output=ohpygossh -vm=python3 .
+
+    python3 -m pip install --upgrade setuptools wheel
+    python3 setup.py bdist_wheel
+
+    # Prove that the wheel can be installed.
+    pip install dist/ohpygossh-*.whl
 
 # Re-validate an already-built wheel without rebuilding it
 validate:
-    ./only_validate.sh
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    # Reuse an existing venv rather than always recreating it -- that's the
+    # slow part 'build' does, and this recipe exists to skip it.
+    if ! [ -f .venv/bin/activate ]; then
+        POETRY=$(type -p poetry) || { echo "Unable to find 'poetry', it must be installed to continue" >&2; exit 1; }
+        "$POETRY" install --no-root
+    fi
+    if ! [ -f .venv/bin/activate ]; then
+        echo "Error: failed to locate virtual environment" >&2
+        exit 1
+    fi
+    source .venv/bin/activate
+
+    # Prove that the wheel can be installed, then validate functionality.
+    pip install dist/ohpygossh-*.whl
+    python validate_ohpygossh.py
 
 # Remove build artifacts and the virtual environment
 clean:
