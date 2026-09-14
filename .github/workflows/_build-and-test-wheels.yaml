@@ -210,9 +210,18 @@ jobs:
         shell: bash
         run: |
           tag="cp3${{ matrix.python3_version }}"
-          wheel="$(find wheelhouse -name "ohpygossh-*-${tag}-*.whl" | head -n1)"
+          arch="$(uname -m)"
+          case "${{ runner.os }}" in
+            Linux) platform_glob="*manylinux*${arch}*" ;;
+            macOS) platform_glob="*macosx*${arch}*" ;;
+            *)
+              echo "error: unsupported runner.os '${{ runner.os }}'" >&2
+              exit 1
+              ;;
+          esac
+          wheel="$(find wheelhouse -name "ohpygossh-*-${tag}-${tag}-${platform_glob}.whl" | head -n1)"
           if [ -z "$wheel" ]; then
-            echo "error: no wheel found matching ${tag} in wheelhouse/" >&2
+            echo "error: no wheel found matching ${tag} / ${platform_glob} in wheelhouse/" >&2
             find wheelhouse -type f
             exit 1
           fi
