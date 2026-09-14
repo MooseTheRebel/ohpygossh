@@ -1,0 +1,223 @@
+---
+# Reusable workflow: builds ohpygossh Python wheels for every supported
+# Python version, on macOS (x86_64 + arm64) and Linux (x86_64 + aarch64),
+# then smoke-tests each built wheel with its matching interpreter.
+#
+# Called by both ci.yaml (build+test gate for PRs) and publish.yml (release),
+# so the two can never drift apart -- a release always publishes exactly
+# what CI built and tested.
+#
+# The `versions` job below is the single place that lists supported Python
+# versions (as a minor-version suffix, e.g. 11 for 3.11): its output feeds
+# both the macOS build matrix and the smoke-test matrix. To add a new
+# version (e.g. 3.14), add it there -- nowhere else. Linux builds every
+# cp3* wheel the manylinux image provides automatically via CIBW_BUILD
+# wildcards, so it needs no version-specific change at all.
+#
+# This is intentionally a lightweight import/smoke check, not the full
+# SSH-server end-to-end suite -- that lives in e2e-lxc.yaml / e2e-multipass.yaml.
+
+name: Build and test wheels
+
+on:
+  workflow_call:
+
+jobs:
+  versions:
+    runs-on: ubuntu-22.04
+    outputs:
+      python3_versions: ${{ steps.set.outputs.versions }}
+    steps:
+      - id: set
+        run: echo 'versions=[11, 12, 13]' >> "$GITHUB_OUTPUT"
+
+  build_macos:
+    needs: versions
+    name: MacOS ${{ matrix.os_version }} Python 3${{ matrix.python3_version }} ${{ matrix.arch_cibw_go[0] }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os_version: [ latest ]
+        python3_version: ${{ fromJSON(needs.versions.outputs.python3_versions) }}
+        arch_cibw_go:
+          - [ "x86_64", "amd64" ]
+          - [ "arm64", "arm64" ]
+    runs-on: macos-${{ matrix.os_version }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.x"
+
+      - name: Setup project files
+        run: |
+            rm -rf poetry.lock pyproject.toml
+
+      - name: install gopy
+        run: go install "github.com/go-python/gopy@$(go list -m -f '{{.Version}}' github.com/go-python/gopy)"
+
+      - name: install goimports
+        run: go install "golang.org/x/tools/cmd/goimports@$(go list -m -f '{{.Version}}' golang.org/x/tools)"
+
+      - name: install python 3.${{ matrix.python3_version }}
+        run: |
+          brew install --force --overwrite python@3.${{ matrix.python3_version }}
+          BREW_PREFIX="$(brew --prefix)"
+          ln -s "$BREW_PREFIX/opt/python@3.${{ matrix.python3_version }}/bin/python3.${{ matrix.python3_version }}" "$BREW_PREFIX/bin/python_for_build"
+          echo "PYTHON_FOR_BUILD=$BREW_PREFIX/bin/python_for_build" >> "$GITHUB_ENV"
+          "$BREW_PREFIX/bin/python_for_build" --version
+
+      - name: Create CC wrapper to replace deprecated -Ofast flag
+        run: |
+          cat > /tmp/cc-wrapper.sh << 'EOF'
+          #!/bin/bash
+          args=()
+          for arg in "$@"; do
+            [[ "$arg" == "-Ofast" ]] && args+=("-O3" "-ffast-math") || args+=("$arg")
+          done
+          exec clang "${args[@]}"
+          EOF
+          chmod +x /tmp/cc-wrapper.sh
+
+      - name: install cibuildwheel and pybindgen
+        run: $PYTHON_FOR_BUILD -m pip install --break-system-packages cibuildwheel==3.4.1 pybindgen
+
+      - name: build wheels
+        run: $PYTHON_FOR_BUILD -m cibuildwheel --output-dir wheelhouse
+        env:
+          CGO_ENABLED: 1  # build fails for arm if unset
+          CIBW_ARCHS: ${{ matrix.arch_cibw_go[0] }}
+          CIBW_REPAIR_WHEEL_COMMAND_MACOS: ""
+          PYTHON_BINARY_PATH: ${{ env.PYTHON_FOR_BUILD }}
+          CIBW_BUILD: "cp3${{ matrix.python3_version }}-*"
+          CIBW_SKIP: "cp36-* cp37-* cp38-* cp39-* cp310-* *-musllinux_x86_64"
+          CIBW_ENVIRONMENT: >
+            PATH=$PATH:/usr/local/go/bin
+            GOARCH=${{ matrix.arch_cibw_go[1] }}
+            CC=/tmp/cc-wrapper.sh
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: wheels-macos${{ matrix.os_version }}-py3${{ matrix.python3_version }}-${{ matrix.arch_cibw_go[0] }}
+          path: ./wheelhouse/*.whl
+
+  build_linux_x86_64:
+    name: Linux Python x86_64
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup project files
+        run: |
+            rm -rf poetry.lock pyproject.toml
+            cat > pyproject.toml << 'EOF'
+            [build-system]
+            requires = ["setuptools>=40.8.0", "pybindgen"]
+            build-backend = "setuptools.build_meta"
+            EOF
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v4.1.1
+        env:
+          CIBW_BUILD: "cp3*_x86_64"
+          CIBW_SKIP: "cp36-* cp37-* cp38-* cp39-* cp310-* *-musllinux_x86_64"
+          CIBW_ARCHS: "native"
+          CIBW_ENVIRONMENT: >
+            PATH=$PATH:/usr/local/go/bin
+          CIBW_BEFORE_ALL_LINUX: |
+            curl -o go.tar.gz https://dl.google.com/go/go1.26.8.linux-amd64.tar.gz
+            tar -C /usr/local -xzf go.tar.gz
+            go install "github.com/go-python/gopy@$(go list -m -f '{{.Version}}' github.com/go-python/gopy)"
+            go install "golang.org/x/tools/cmd/goimports@$(go list -m -f '{{.Version}}' golang.org/x/tools)"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: wheels-linux-amd64
+          path: ./wheelhouse/*.whl
+
+  build_linux_arm:
+    name: Linux Python ARM
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup project files
+        run: |
+            rm -rf poetry.lock pyproject.toml
+            cat > pyproject.toml << 'EOF'
+            [build-system]
+            requires = ["setuptools>=40.8.0", "pybindgen"]
+            build-backend = "setuptools.build_meta"
+            EOF
+
+      # QEMU is used by cibuildwheel to cross-compile wheels
+      # https://cibuildwheel.pypa.io/en/stable/faq/#emulation
+      - name: Set up QEMU
+        if: runner.os == 'Linux'
+        uses: docker/setup-qemu-action@v4
+        with:
+          platforms: all
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v4.1.1
+        env:
+          CIBW_BUILD: "cp3*_aarch64"
+          CIBW_SKIP: "cp36-* cp37-* cp38-* cp39-* cp310-* *-musllinux_x86_64"
+          CIBW_ARCHS: "aarch64"
+          CIBW_ENVIRONMENT: >
+            PATH=$PATH:/usr/local/go/bin
+          CIBW_BEFORE_ALL_LINUX: |
+            curl -o go.tar.gz https://dl.google.com/go/go1.26.8.linux-arm64.tar.gz
+            tar -C /usr/local -xzf go.tar.gz
+            go install "github.com/go-python/gopy@$(go list -m -f '{{.Version}}' github.com/go-python/gopy)"
+            go install "golang.org/x/tools/cmd/goimports@$(go list -m -f '{{.Version}}' golang.org/x/tools)"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: wheels-linux-arm
+          path: ./wheelhouse/*.whl
+
+  test:
+    needs: [ versions, build_macos, build_linux_x86_64, build_linux_arm ]
+    name: Smoke test wheel (${{ matrix.os }}, Python 3.${{ matrix.python3_version }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-22.04, macos-latest ]
+        python3_version: ${{ fromJSON(needs.versions.outputs.python3_versions) }}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Download wheel artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: wheelhouse
+          pattern: wheels-*
+          merge-multiple: true
+
+      - name: Set up Python 3.${{ matrix.python3_version }}
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.${{ matrix.python3_version }}"
+
+      - name: Install the wheel built for this interpreter
+        shell: bash
+        run: |
+          tag="cp3${{ matrix.python3_version }}"
+          wheel="$(find wheelhouse -name "ohpygossh-*-${tag}-*.whl" | head -n1)"
+          if [ -z "$wheel" ]; then
+            echo "error: no wheel found matching ${tag} in wheelhouse/" >&2
+            find wheelhouse -type f
+            exit 1
+          fi
+          echo "Installing $wheel"
+          python -m pip install "$wheel"
+
+      - name: Smoke test
+        run: python -c "from ohpygossh.gohpygossh import Hello; print(Hello())"

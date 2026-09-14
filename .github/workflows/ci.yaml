@@ -1,5 +1,5 @@
 ---
-name: Justfile -- setup / lint / test
+name: CI
 
 on:
   push:
@@ -17,6 +17,28 @@ permissions:
   contents: read
 
 jobs:
+  lint:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true
+      matrix:
+        os: [macos-latest, ubuntu-22.04]
+        go-version: [1.26.x]
+    steps:
+      - uses: actions/checkout@v7
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: ${{ matrix.go-version }}
+          cache-dependency-path: go.sum
+      - name: Install dependencies
+        run: go get .
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: pre-commit/action@v3.0.1
+
   just-targets:
     name: just (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -45,3 +67,6 @@ jobs:
 
       - name: just test
         run: just test
+
+  build-and-test-wheels:
+    uses: ./.github/workflows/_build-and-test-wheels.yaml
