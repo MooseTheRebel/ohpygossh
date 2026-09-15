@@ -27,7 +27,7 @@ jobs:
           EOF
 
       - name: Build wheel
-        uses: pypa/cibuildwheel@v4.1.1
+        uses: pypa/cibuildwheel@v4.2.1
         env:
           CIBW_BUILD: "cp311-*_x86_64"
           CIBW_SKIP: "*-musllinux_x86_64"
