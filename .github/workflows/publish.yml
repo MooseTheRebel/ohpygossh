@@ -3,166 +3,16 @@ name: PyPIBuild
 # Based on:
 # - https://github.com/tuananh/py-event-ruler/blob/0129d15e17d0023863a4d0e0e25e5256988b5c5b/.github/workflows/publish.yml
 # - https://github.com/adhadse/excelFormExtractor/blob/1f82a97808b3cf3cdb25dcefdc1c6a1c74c5ad45/.github/workflows/build.yaml
-
+#
+# The build/test steps themselves live in _build-and-test-wheels.yaml, shared
+# with ci.yaml, so a release always publishes exactly what CI built and tested.
 
 on:
     workflow_dispatch:
 
 jobs:
-  build_macos:
-    # if: false
-    name: MacOS ${{ matrix.os_version }} Python 3${{ matrix.python3_version }} ${{ matrix.arch_cibw_go[0] }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os_version: [ latest ]
-        python3_version: [ 11, 12 ]
-        arch_cibw_go:
-          - [ "x86_64", "amd64" ]
-          - [ "arm64", "arm64" ]
-    runs-on: macos-${{ matrix.os_version }}
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: set up Go
-        uses: actions/setup-go@v7
-        with:
-          go-version: "1.26.x"
-
-      - name: Setup project files
-        run: |
-            rm -rf poetry.lock pyproject.toml
-
-      - name: install gopy
-        run: go install "github.com/go-python/gopy@$(go list -m -f '{{.Version}}' github.com/go-python/gopy)"
-
-      - name: install goimports
-        run: go install "golang.org/x/tools/cmd/goimports@$(go list -m -f '{{.Version}}' golang.org/x/tools)"
-
-      - name: install python 3.${{ matrix.python3_version }}
-        run: |
-          brew install --force --overwrite python@3.${{ matrix.python3_version }}
-          BREW_PREFIX="$(brew --prefix)"
-          ln -s "$BREW_PREFIX/opt/python@3.${{ matrix.python3_version }}/bin/python3.${{ matrix.python3_version }}" "$BREW_PREFIX/bin/python_for_build"
-          echo "PYTHON_FOR_BUILD=$BREW_PREFIX/bin/python_for_build" >> "$GITHUB_ENV"
-          "$BREW_PREFIX/bin/python_for_build" --version
-
-      - name: Create CC wrapper to replace deprecated -Ofast flag
-        run: |
-          cat > /tmp/cc-wrapper.sh << 'EOF'
-          #!/bin/bash
-          args=()
-          for arg in "$@"; do
-            [[ "$arg" == "-Ofast" ]] && args+=("-O3" "-ffast-math") || args+=("$arg")
-          done
-          exec clang "${args[@]}"
-          EOF
-          chmod +x /tmp/cc-wrapper.sh
-
-      - name: install cibuildwheel and pybindgen
-        run: $PYTHON_FOR_BUILD -m pip install --break-system-packages cibuildwheel==3.4.1 pybindgen
-
-      - name: build wheels
-        run: $PYTHON_FOR_BUILD -m cibuildwheel --output-dir wheelhouse
-        env:
-          CGO_ENABLED: 1  # build fails for arm if unset
-          CIBW_ARCHS: ${{ matrix.arch_cibw_go[0] }}
-          CIBW_REPAIR_WHEEL_COMMAND_MACOS: ""
-          PYTHON_BINARY_PATH: ${{ env.PYTHON_FOR_BUILD }}
-          CIBW_BUILD: "cp3${{ matrix.python3_version }}-*"
-          CIBW_SKIP: "cp36-* cp37-* cp38-* cp39-* cp310-* *-musllinux_x86_64"
-          CIBW_ENVIRONMENT: >
-            PATH=$PATH:/usr/local/go/bin
-            GOARCH=${{ matrix.arch_cibw_go[1] }}
-            CC=/tmp/cc-wrapper.sh
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v7
-        with:
-          name: wheels-macos${{ matrix.os_version }}-py3${{ matrix.python3_version }}-${{ matrix.arch_cibw_go[0] }}
-          path: ./wheelhouse/*.whl
-
-  build_linux_x86_64:
-    # if: false
-    name: Linux Python x86_64
-    runs-on: ubuntu-22.04
-
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Setup project files
-        run: |
-            rm -rf poetry.lock pyproject.toml
-            cat > pyproject.toml << 'EOF'
-            [build-system]
-            requires = ["setuptools>=40.8.0", "pybindgen"]
-            build-backend = "setuptools.build_meta"
-            EOF
-
-      - name: Build wheels
-        uses: pypa/cibuildwheel@v4.1.1
-        env:
-          CIBW_BUILD: "cp3*_x86_64 cp3*_aarch64"
-          CIBW_SKIP: "cp36-* cp37-* cp38-* cp39-* cp310-* *-musllinux_x86_64"
-          CIBW_ARCHS: "native"
-          CIBW_ENVIRONMENT: >
-            PATH=$PATH:/usr/local/go/bin
-          CIBW_BEFORE_ALL_LINUX: |
-            curl -o go.tar.gz https://dl.google.com/go/go1.26.8.linux-amd64.tar.gz
-            tar -C /usr/local -xzf go.tar.gz
-            go install "github.com/go-python/gopy@$(go list -m -f '{{.Version}}' github.com/go-python/gopy)"
-            go install "golang.org/x/tools/cmd/goimports@$(go list -m -f '{{.Version}}' golang.org/x/tools)"
-
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v7
-        with:
-          name: wheels-linux-amd64
-          path: ./wheelhouse/*.whl
-
-  build_linux_arm:
-    name: Linux Python ARM
-    runs-on: ubuntu-22.04
-
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Setup project files
-        run: |
-            rm -rf poetry.lock pyproject.toml
-            cat > pyproject.toml << 'EOF'
-            [build-system]
-            requires = ["setuptools>=40.8.0", "pybindgen"]
-            build-backend = "setuptools.build_meta"
-            EOF
-
-      # QEMU is used by cibuildwheel to cross-compile wheels
-      # https://cibuildwheel.pypa.io/en/stable/faq/#emulation
-      - name: Set up QEMU
-        if: runner.os == 'Linux'
-        uses: docker/setup-qemu-action@v4
-        with:
-          platforms: all
-
-      - name: Build wheels
-        uses: pypa/cibuildwheel@v4.1.1
-        env:
-          CIBW_BUILD: "cp3*_aarch64"
-          CIBW_SKIP: "cp36-* cp37-* cp38-* cp39-* cp310-* *-musllinux_x86_64"
-          CIBW_ARCHS: "aarch64"
-          CIBW_ENVIRONMENT: >
-            PATH=$PATH:/usr/local/go/bin
-          CIBW_BEFORE_ALL_LINUX: |
-            curl -o go.tar.gz https://dl.google.com/go/go1.26.8.linux-arm64.tar.gz
-            tar -C /usr/local -xzf go.tar.gz
-            go install "github.com/go-python/gopy@$(go list -m -f '{{.Version}}' github.com/go-python/gopy)"
-            go install "golang.org/x/tools/cmd/goimports@$(go list -m -f '{{.Version}}' golang.org/x/tools)"
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v7
-        with:
-          name: wheels-linux-arm
-          path: ./wheelhouse/*.whl
+  build-and-test-wheels:
+    uses: ./.github/workflows/_build-and-test-wheels.yaml
 
 #   build_windows:
 #     if: false  # not working
@@ -209,7 +59,7 @@ jobs:
       contents: write
       # This permission is mandatory for PyPI's trusted publishing
       id-token: write
-    needs: [build_macos, build_linux_x86_64, build_linux_arm]
+    needs: build-and-test-wheels
     runs-on: ubuntu-22.04
     if: ${{ github.event_name == 'workflow_dispatch' }}
 
