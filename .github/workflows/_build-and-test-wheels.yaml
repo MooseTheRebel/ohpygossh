@@ -9,10 +9,11 @@
 #
 # The `versions` job below is the single place that lists supported Python
 # versions (as a minor-version suffix, e.g. 11 for 3.11): its output feeds
-# both the macOS build matrix and the smoke-test matrix. To add a new
-# version (e.g. 3.14), add it there -- nowhere else. Linux builds every
-# cp3* wheel the manylinux image provides automatically via CIBW_BUILD
-# wildcards, so it needs no version-specific change at all.
+# the macOS build matrix, the smoke-test matrix, and (via a per-job
+# CIBW_BUILD selector derived with jq) both Linux build jobs. This keeps
+# Linux from building -- and publish.yml from shipping -- any interpreter
+# newer than what's actually declared supported and smoke-tested. To add a
+# new version (e.g. 3.14), add it there -- nowhere else.
 #
 # This is intentionally a lightweight import/smoke check, not the full
 # SSH-server end-to-end suite -- that lives in e2e-lxc.yaml / e2e-multipass.yaml.
@@ -105,6 +106,7 @@ jobs:
           path: ./wheelhouse/*.whl
 
   build_linux_x86_64:
+    needs: versions
     name: Linux Python x86_64
     runs-on: ubuntu-22.04
 
@@ -120,11 +122,16 @@ jobs:
             build-backend = "setuptools.build_meta"
             EOF
 
+      - name: Compute CIBW_BUILD selector from supported versions
+        run: |
+          pattern="$(echo '${{ needs.versions.outputs.python3_versions }}' | jq -r '[.[] | "cp3\(.)-*"] | join(" ")')"
+          echo "CIBW_BUILD_PATTERN=$pattern" >> "$GITHUB_ENV"
+
       - name: Build wheels
         uses: pypa/cibuildwheel@v4.1.1
         env:
-          CIBW_BUILD: "cp3*_x86_64"
-          CIBW_SKIP: "cp36-* cp37-* cp38-* cp39-* cp310-* *-musllinux_x86_64"
+          CIBW_BUILD: ${{ env.CIBW_BUILD_PATTERN }}
+          CIBW_SKIP: "*-musllinux_x86_64"
           CIBW_ARCHS: "native"
           CIBW_ENVIRONMENT: >
             PATH=$PATH:/usr/local/go/bin
@@ -141,6 +148,7 @@ jobs:
           path: ./wheelhouse/*.whl
 
   build_linux_arm:
+    needs: versions
     name: Linux Python ARM
     runs-on: ubuntu-22.04
 
@@ -164,11 +172,16 @@ jobs:
         with:
           platforms: all
 
+      - name: Compute CIBW_BUILD selector from supported versions
+        run: |
+          pattern="$(echo '${{ needs.versions.outputs.python3_versions }}' | jq -r '[.[] | "cp3\(.)-*"] | join(" ")')"
+          echo "CIBW_BUILD_PATTERN=$pattern" >> "$GITHUB_ENV"
+
       - name: Build wheels
         uses: pypa/cibuildwheel@v4.1.1
         env:
-          CIBW_BUILD: "cp3*_aarch64"
-          CIBW_SKIP: "cp36-* cp37-* cp38-* cp39-* cp310-* *-musllinux_x86_64"
+          CIBW_BUILD: ${{ env.CIBW_BUILD_PATTERN }}
+          CIBW_SKIP: "*-musllinux_x86_64"
           CIBW_ARCHS: "aarch64"
           CIBW_ENVIRONMENT: >
             PATH=$PATH:/usr/local/go/bin
