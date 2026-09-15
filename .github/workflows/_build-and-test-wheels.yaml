@@ -30,7 +30,7 @@ jobs:
       python3_versions: ${{ steps.set.outputs.versions }}
     steps:
       - id: set
-        run: echo 'versions=[11, 12, 13]' >> "$GITHUB_OUTPUT"
+        run: echo 'versions=[11, 12, 13, 14]' >> "$GITHUB_OUTPUT"
 
   build_macos:
     needs: versions
