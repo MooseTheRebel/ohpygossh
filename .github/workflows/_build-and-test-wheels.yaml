@@ -4,8 +4,7 @@
 # then smoke-tests each built wheel with its matching interpreter.
 #
 # Called by both ci.yaml (build+test gate for PRs) and publish.yml (release),
-# so the two can never drift apart -- a release always publishes exactly
-# what CI built and tested.
+# so the two can never drift apart.
 #
 # The `versions` job below is the single place that lists supported Python
 # versions (as a minor-version suffix, e.g. 11 for 3.11): its output feeds
@@ -13,7 +12,7 @@
 # CIBW_BUILD selector derived with jq) both Linux build jobs. This keeps
 # Linux from building -- and publish.yml from shipping -- any interpreter
 # newer than what's actually declared supported and smoke-tested. To add a
-# new version (e.g. 3.14), add it there -- nowhere else.
+# new version (e.g. 3.xx), add it there -- nowhere else.
 #
 # This is intentionally a lightweight import/smoke check, not the full
 # SSH-server end-to-end suite -- that lives in e2e-lxc.yaml / e2e-multipass.yaml.
@@ -33,7 +32,7 @@ jobs:
       python3_versions: ${{ steps.set.outputs.versions }}
     steps:
       - id: set
-        run: echo 'versions=[11, 12, 13, 14]' >> "$GITHUB_OUTPUT"
+        run: echo 'versions=[11, 12, 13, 14, 15]' >> "$GITHUB_OUTPUT"
 
   build_macos:
     needs: versions
@@ -90,7 +89,7 @@ jobs:
           chmod +x /tmp/cc-wrapper.sh
 
       - name: install cibuildwheel and pybindgen
-        run: $PYTHON_FOR_BUILD -m pip install --break-system-packages cibuildwheel==3.4.1 pybindgen
+        run: $PYTHON_FOR_BUILD -m pip install --break-system-packages cibuildwheel==4.2.1 pybindgen
 
       - name: build wheels
         run: $PYTHON_FOR_BUILD -m cibuildwheel --output-dir wheelhouse
