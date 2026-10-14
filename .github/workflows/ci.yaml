@@ -25,19 +25,21 @@ jobs:
         os: [macos-latest, ubuntu-22.04]
         go-version: [1.26.x]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
       - name: Setup Go
-        uses: actions/setup-go@v7
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version: ${{ matrix.go-version }}
           cache-dependency-path: go.sum
       - name: Install dependencies
         run: go get .
       - name: Set up Python
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: '3.11'
-      - uses: pre-commit/action@v3.0.1
+      - uses: pre-commit/action@2c7b3805fd2a0fd8c1884dcaebf91fc102a13ecd # v3.0.1
 
   just-targets:
     name: just (${{ matrix.os }})
@@ -47,7 +49,9 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       # macos-latest runners ship with Homebrew preinstalled; Linux runners don't.
       - name: Install Homebrew
@@ -69,4 +73,4 @@ jobs:
         run: just test
 
   build-and-test-wheels:
-    uses: ./.github/workflows/_build-and-test-wheels.yaml
+    uses: $/.github/workflows/_build-and-test-wheels.yaml

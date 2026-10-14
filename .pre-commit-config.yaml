@@ -14,21 +14,28 @@ repos:
           - id: trailing-whitespace
 
     - repo: https://github.com/golangci/golangci-lint
-      rev: v2.13.2
+      rev: v2.14.0
       hooks:
         - id: golangci-lint
           args: ["--fix"]
     - repo: https://github.com/codespell-project/codespell
-      rev: v2.4.2
+      rev: v2.4.3
       hooks:
           - id: codespell
             args: ["--ignore-words-list", "b-long, gohpygossh", "--skip=go.sum,gohpygossh/"]
 
     - repo: https://github.com/astral-sh/ruff-pre-commit
       # Ruff version.
-      rev: v0.15.14
+      rev: v0.17.0
       hooks:
         # Run the linter.
         - id: ruff
         # Run the formatter.
         - id: ruff-format
+
+    - repo: https://github.com/zizmorcore/zizmor-pre-commit
+      # zizmor version.
+      rev: v1.30.1
+      hooks:
+        # Run the GitHub Actions security linter.
+        - id: zizmor

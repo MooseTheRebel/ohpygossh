@@ -23,6 +23,9 @@ name: Build and test wheels
 on:
   workflow_call:
 
+permissions:
+  contents: read
+
 jobs:
   versions:
     runs-on: ubuntu-22.04
@@ -45,10 +48,12 @@ jobs:
           - [ "arm64", "arm64" ]
     runs-on: macos-${{ matrix.os_version }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: set up Go
-        uses: actions/setup-go@v7
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version: "1.26.x"
 
@@ -64,11 +69,13 @@ jobs:
 
       - name: install python 3.${{ matrix.python3_version }}
         run: |
-          brew install --force --overwrite python@3.${{ matrix.python3_version }}
+          brew install --force --overwrite python@3.${MATRIX_PYTHON3_VERSION}
           BREW_PREFIX="$(brew --prefix)"
-          ln -s "$BREW_PREFIX/opt/python@3.${{ matrix.python3_version }}/bin/python3.${{ matrix.python3_version }}" "$BREW_PREFIX/bin/python_for_build"
+          ln -s "$BREW_PREFIX/opt/python@3.${MATRIX_PYTHON3_VERSION}/bin/python3.${MATRIX_PYTHON3_VERSION}" "$BREW_PREFIX/bin/python_for_build"
           echo "PYTHON_FOR_BUILD=$BREW_PREFIX/bin/python_for_build" >> "$GITHUB_ENV"
           "$BREW_PREFIX/bin/python_for_build" --version
+        env:
+          MATRIX_PYTHON3_VERSION: ${{ matrix.python3_version }}
 
       - name: Create CC wrapper to replace deprecated -Ofast flag
         run: |
@@ -100,7 +107,7 @@ jobs:
             CC=/tmp/cc-wrapper.sh
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: wheels-macos${{ matrix.os_version }}-py3${{ matrix.python3_version }}-${{ matrix.arch_cibw_go[0] }}
           path: ./wheelhouse/*.whl
@@ -111,7 +118,9 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Setup project files
         run: |
@@ -124,11 +133,13 @@ jobs:
 
       - name: Compute CIBW_BUILD selector from supported versions
         run: |
-          pattern="$(echo '${{ needs.versions.outputs.python3_versions }}' | jq -r '[.[] | "cp3\(.)-*"] | join(" ")')"
+          pattern="$(echo "$NEEDS_VERSIONS_OUTPUTS_PYTHON3_VERSIONS" | jq -r '[.[] | "cp3\(.)-*"] | join(" ")')"
           echo "CIBW_BUILD_PATTERN=$pattern" >> "$GITHUB_ENV"
+        env:
+          NEEDS_VERSIONS_OUTPUTS_PYTHON3_VERSIONS: ${{ needs.versions.outputs.python3_versions }}
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v4.2.1
+        uses: pypa/cibuildwheel@e090b81e30c4d855ea63bf4b6e59204c09a101ae # v4.2.1
         env:
           CIBW_BUILD: ${{ env.CIBW_BUILD_PATTERN }}
           CIBW_SKIP: "*-musllinux_x86_64"
@@ -142,7 +153,7 @@ jobs:
             go install "golang.org/x/tools/cmd/goimports@$(go list -m -f '{{.Version}}' golang.org/x/tools)"
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: wheels-linux-amd64
           path: ./wheelhouse/*.whl
@@ -153,7 +164,9 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Setup project files
         run: |
@@ -168,17 +181,19 @@ jobs:
       # https://cibuildwheel.pypa.io/en/stable/faq/#emulation
       - name: Set up QEMU
         if: runner.os == 'Linux'
-        uses: docker/setup-qemu-action@v4
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4
         with:
           platforms: all
 
       - name: Compute CIBW_BUILD selector from supported versions
         run: |
-          pattern="$(echo '${{ needs.versions.outputs.python3_versions }}' | jq -r '[.[] | "cp3\(.)-*"] | join(" ")')"
+          pattern="$(echo "$NEEDS_VERSIONS_OUTPUTS_PYTHON3_VERSIONS" | jq -r '[.[] | "cp3\(.)-*"] | join(" ")')"
           echo "CIBW_BUILD_PATTERN=$pattern" >> "$GITHUB_ENV"
+        env:
+          NEEDS_VERSIONS_OUTPUTS_PYTHON3_VERSIONS: ${{ needs.versions.outputs.python3_versions }}
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v4.2.1
+        uses: pypa/cibuildwheel@e090b81e30c4d855ea63bf4b6e59204c09a101ae # v4.2.1
         env:
           CIBW_BUILD: ${{ env.CIBW_BUILD_PATTERN }}
           CIBW_SKIP: "*-musllinux_x86_64"
@@ -192,7 +207,7 @@ jobs:
             go install "golang.org/x/tools/cmd/goimports@$(go list -m -f '{{.Version}}' golang.org/x/tools)"
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: wheels-linux-arm
           path: ./wheelhouse/*.whl
@@ -208,21 +223,21 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Download wheel artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           path: wheelhouse
           pattern: wheels-*
           merge-multiple: true
 
       - name: Set up Python 3.${{ matrix.python3_version }}
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.${{ matrix.python3_version }}"
 
       - name: Install the wheel built for this interpreter
         shell: bash
         run: |
-          tag="cp3${{ matrix.python3_version }}"
+          tag="cp3${MATRIX_PYTHON3_VERSION}"
           arch="$(uname -m)"
           case "${{ runner.os }}" in
             Linux) platform_glob="*manylinux*${arch}*" ;;
@@ -240,6 +255,8 @@ jobs:
           fi
           echo "Installing $wheel"
           python -m pip install "$wheel"
+        env:
+          MATRIX_PYTHON3_VERSION: ${{ matrix.python3_version }}
 
       - name: Smoke test
         run: python -c "from ohpygossh.gohpygossh import Hello; print(Hello())"

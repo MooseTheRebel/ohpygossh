@@ -3,17 +3,17 @@ This file serves as a test of ohpygossh.
 """
 
 import glob
-import sys
 import json
-from shutil import copy, which
-from pathlib import Path
 import os
-from os import listdir, chdir
-from os.path import join
 import subprocess
+import sys
 import tempfile
 import time
+from os import chdir, listdir
+from os.path import join
+from pathlib import Path
 from shlex import split
+from shutil import copy, which
 
 GIT_ROOT = Path(__file__).parent.resolve()
 DOCKER_IN_VAGRANT = GIT_ROOT / "ssh-servers" / "docker-in-vagrant"
@@ -50,7 +50,7 @@ def get_vagrant_ssh_field(field: str, vagrantfile_dir: Path):
         cwd=vagrantfile_dir,
     )
 
-    ssh_config_output, err = process.communicate()
+    ssh_config_output, _err = process.communicate()
 
     # Iterates over lines and searches for the line starting
     # with a given field (e.g. "Port" or "HostName").
@@ -62,7 +62,7 @@ def get_vagrant_ssh_field(field: str, vagrantfile_dir: Path):
             return line.split()[1]
 
     # If no "HostName" line is found, raise an exception
-    raise Exception(f"Failed to find {field=} in vagrant ssh-config")
+    raise RuntimeError(f"Failed to find {field=} in vagrant ssh-config")
 
 
 def test_with_keys_only():
@@ -226,7 +226,9 @@ def _lxc_cmd() -> list:
     """
     if sys.platform == "linux" and os.geteuid() != 0 and which("sudo"):
         if (
-            subprocess.run(["lxc", "list"], capture_output=True, timeout=10).returncode
+            subprocess.run(
+                ["lxc", "list"], capture_output=True, timeout=10, check=False
+            ).returncode
             != 0
         ):
             return ["sudo", "lxc"]
@@ -319,7 +321,7 @@ def test_with_multipass():
                             f"Launch attempt {attempt} failed, retrying in {wait}s..."
                         )
                         time.sleep(wait)
-                    if subprocess.run(launch_cmd).returncode == 0:
+                    if subprocess.run(launch_cmd, check=False).returncode == 0:
                         break
                 else:
                     raise RuntimeError("multipass launch failed after 4 attempts")
@@ -390,12 +392,15 @@ def test_with_lxc():
                             [*lxc, "delete", "--force", vm_name],
                             stdout=subprocess.DEVNULL,
                             stderr=subprocess.DEVNULL,
+                            check=False,
                         )
                         time.sleep(wait)
                     # init + config set + start avoids embedding multi-line YAML
                     # in --config= and uses the modern cloud-init.user-data key.
                     if (
-                        subprocess.run([*lxc, "init", "ubuntu:lts", vm_name]).returncode
+                        subprocess.run(
+                            [*lxc, "init", "ubuntu:lts", vm_name], check=False
+                        ).returncode
                         != 0
                     ):
                         continue
@@ -408,12 +413,16 @@ def test_with_lxc():
                                 vm_name,
                                 "cloud-init.user-data",
                                 cloud_init_content,
-                            ]
+                            ],
+                            check=False,
                         ).returncode
                         != 0
                     ):
                         continue
-                    if subprocess.run([*lxc, "start", vm_name]).returncode == 0:
+                    if (
+                        subprocess.run([*lxc, "start", vm_name], check=False).returncode
+                        == 0
+                    ):
                         break
                 else:
                     raise RuntimeError("lxc launch failed after 4 attempts")
@@ -439,7 +448,7 @@ def test_with_lxc():
                             network = (container.get("state") or {}).get(
                                 "network"
                             ) or {}
-                            for _iface, info in network.items():
+                            for info in network.values():
                                 for addr in (info or {}).get("addresses", []):
                                     if (
                                         addr.get("family") == "inet"
@@ -470,6 +479,7 @@ def test_with_lxc():
                 # acceptable — the SSH test below is the real gate.
                 ci_result = subprocess.run(
                     [*lxc, "exec", vm_name, "--", "cloud-init", "status", "--wait"],
+                    check=False,
                 )
                 if ci_result.returncode == 1:
                     print(

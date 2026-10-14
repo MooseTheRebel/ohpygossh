@@ -9,13 +9,18 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   e2e-lxc:
     name: E2E Ubuntu (lxc)
     runs-on: ubuntu-22.04
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Setup project files
         run: |
@@ -27,7 +32,7 @@ jobs:
           EOF
 
       - name: Build wheel
-        uses: pypa/cibuildwheel@v4.2.1
+        uses: pypa/cibuildwheel@e090b81e30c4d855ea63bf4b6e59204c09a101ae # v4.2.1
         env:
           CIBW_BUILD: "cp311-*_x86_64"
           CIBW_SKIP: "*-musllinux_x86_64"
@@ -41,12 +46,12 @@ jobs:
             go install "golang.org/x/tools/cmd/goimports@$(go list -m -f '{{.Version}}' golang.org/x/tools)"
 
       - name: Setup Python 3.11
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: '3.11'
 
       - name: Setup LXD
-        uses: canonical/setup-lxd@v1
+        uses: canonical/setup-lxd@8c6a87bfb56aa48f3fb9b830baa18562d8bfd4ee # v1
         with:
           channel: latest/edge
 
