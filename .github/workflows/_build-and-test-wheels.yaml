@@ -68,6 +68,9 @@ jobs:
 
       - name: install python 3.${{ matrix.python3_version }}
         run: |
+          # The runner image's Homebrew metadata can predate a new Python
+          # formula (e.g. python@3.15); refresh it only when the formula is unknown.
+          brew info --formula "python@3.${MATRIX_PYTHON3_VERSION}" >/dev/null 2>&1 || brew update
           brew install --force --overwrite python@3.${MATRIX_PYTHON3_VERSION}
           BREW_PREFIX="$(brew --prefix)"
           ln -s "$BREW_PREFIX/opt/python@3.${MATRIX_PYTHON3_VERSION}/bin/python3.${MATRIX_PYTHON3_VERSION}" "$BREW_PREFIX/bin/python_for_build"
