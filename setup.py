@@ -11,7 +11,7 @@ from setuptools.command.build_ext import build_ext
 """
 NOTE: This project's 'setup.py' branches on the CIBUILDWHEEL env var,
 (set to "1" by cibuildwheel). This is documented in cibuildwheel's faq
-page: https://cibuildwheel.pypa.io/en/v4.2.1/faq/#:~:text=the%20environment%20variable%20CIBUILDWHEEL
+page: https://cibuildwheel.pypa.io/en/v4.3.1/faq/#:~:text=the%20environment%20variable%20CIBUILDWHEEL
 
 Additionally:
 

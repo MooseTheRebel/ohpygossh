@@ -89,7 +89,7 @@ jobs:
           chmod +x /tmp/cc-wrapper.sh
 
       - name: install cibuildwheel and pybindgen
-        run: $PYTHON_FOR_BUILD -m pip install --break-system-packages cibuildwheel==4.2.1 pybindgen
+        run: $PYTHON_FOR_BUILD -m pip install --break-system-packages cibuildwheel==4.3.1 pybindgen
 
       - name: build wheels
         run: $PYTHON_FOR_BUILD -m cibuildwheel --output-dir wheelhouse
@@ -138,7 +138,7 @@ jobs:
           NEEDS_VERSIONS_OUTPUTS_PYTHON3_VERSIONS: ${{ needs.versions.outputs.python3_versions }}
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@e090b81e30c4d855ea63bf4b6e59204c09a101ae # v4.2.1
+        uses: pypa/cibuildwheel@b3395e271a35f73dad77f21802abe9b986dfe299 # v4.3.1
         env:
           CIBW_BUILD: ${{ env.CIBW_BUILD_PATTERN }}
           CIBW_SKIP: "*-musllinux_x86_64"
@@ -192,7 +192,7 @@ jobs:
           NEEDS_VERSIONS_OUTPUTS_PYTHON3_VERSIONS: ${{ needs.versions.outputs.python3_versions }}
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@e090b81e30c4d855ea63bf4b6e59204c09a101ae # v4.2.1
+        uses: pypa/cibuildwheel@b3395e271a35f73dad77f21802abe9b986dfe299 # v4.3.1
         env:
           CIBW_BUILD: ${{ env.CIBW_BUILD_PATTERN }}
           CIBW_SKIP: "*-musllinux_x86_64"
