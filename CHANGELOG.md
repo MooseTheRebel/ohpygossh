@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.0](https://github.com/MooseTheRebel/ohpygossh/compare/ohpygossh-v0.7.0...ohpygossh-v0.8.0) (2026-10-14)
+
+
+### Features
+
+* add zizmor hook, fix workflow findings ([#116](https://github.com/MooseTheRebel/ohpygossh/issues/116)) ([37612a0](https://github.com/MooseTheRebel/ohpygossh/commit/37612a052ee9807cc415d8a1e4d06aeaf716f31e))
+* support Python 3.15 ([#114](https://github.com/MooseTheRebel/ohpygossh/issues/114)) ([a630737](https://github.com/MooseTheRebel/ohpygossh/commit/a630737044e210226f08e03105da2c2990dc72ef))
+
 ## [0.7.0](https://github.com/MooseTheRebel/ohpygossh/compare/ohpygossh-v0.6.2...ohpygossh-v0.7.0) (2026-09-15)
 
 
