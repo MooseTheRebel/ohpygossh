@@ -4,8 +4,7 @@
 # then smoke-tests each built wheel with its matching interpreter.
 #
 # Called by both ci.yaml (build+test gate for PRs) and publish.yml (release),
-# so the two can never drift apart -- a release always publishes exactly
-# what CI built and tested.
+# so the two can never drift apart.
 #
 # The `versions` job below is the single place that lists supported Python
 # versions (as a minor-version suffix, e.g. 11 for 3.11): its output feeds
@@ -13,7 +12,7 @@
 # CIBW_BUILD selector derived with jq) both Linux build jobs. This keeps
 # Linux from building -- and publish.yml from shipping -- any interpreter
 # newer than what's actually declared supported and smoke-tested. To add a
-# new version (e.g. 3.14), add it there -- nowhere else.
+# new version (e.g. 3.xx), add it there -- nowhere else.
 #
 # This is intentionally a lightweight import/smoke check, not the full
 # SSH-server end-to-end suite -- that lives in e2e-lxc.yaml / e2e-multipass.yaml.
@@ -33,7 +32,7 @@ jobs:
       python3_versions: ${{ steps.set.outputs.versions }}
     steps:
       - id: set
-        run: echo 'versions=[11, 12, 13, 14]' >> "$GITHUB_OUTPUT"
+        run: echo 'versions=[11, 12, 13, 14, 15]' >> "$GITHUB_OUTPUT"
 
   build_macos:
     needs: versions
@@ -69,6 +68,9 @@ jobs:
 
       - name: install python 3.${{ matrix.python3_version }}
         run: |
+          # The runner image's Homebrew metadata can predate a new Python
+          # formula (e.g. python@3.15); refresh it only when the formula is unknown.
+          brew info --formula "python@3.${MATRIX_PYTHON3_VERSION}" >/dev/null 2>&1 || brew update
           brew install --force --overwrite python@3.${MATRIX_PYTHON3_VERSION}
           BREW_PREFIX="$(brew --prefix)"
           ln -s "$BREW_PREFIX/opt/python@3.${MATRIX_PYTHON3_VERSION}/bin/python3.${MATRIX_PYTHON3_VERSION}" "$BREW_PREFIX/bin/python_for_build"
@@ -90,7 +92,7 @@ jobs:
           chmod +x /tmp/cc-wrapper.sh
 
       - name: install cibuildwheel and pybindgen
-        run: $PYTHON_FOR_BUILD -m pip install --break-system-packages cibuildwheel==3.4.1 pybindgen
+        run: $PYTHON_FOR_BUILD -m pip install --break-system-packages cibuildwheel==4.3.1 pybindgen
 
       - name: build wheels
         run: $PYTHON_FOR_BUILD -m cibuildwheel --output-dir wheelhouse
@@ -139,7 +141,7 @@ jobs:
           NEEDS_VERSIONS_OUTPUTS_PYTHON3_VERSIONS: ${{ needs.versions.outputs.python3_versions }}
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@e090b81e30c4d855ea63bf4b6e59204c09a101ae # v4.2.1
+        uses: pypa/cibuildwheel@b3395e271a35f73dad77f21802abe9b986dfe299 # v4.3.1
         env:
           CIBW_BUILD: ${{ env.CIBW_BUILD_PATTERN }}
           CIBW_SKIP: "*-musllinux_x86_64"
@@ -193,7 +195,7 @@ jobs:
           NEEDS_VERSIONS_OUTPUTS_PYTHON3_VERSIONS: ${{ needs.versions.outputs.python3_versions }}
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@e090b81e30c4d855ea63bf4b6e59204c09a101ae # v4.2.1
+        uses: pypa/cibuildwheel@b3395e271a35f73dad77f21802abe9b986dfe299 # v4.3.1
         env:
           CIBW_BUILD: ${{ env.CIBW_BUILD_PATTERN }}
           CIBW_SKIP: "*-musllinux_x86_64"
