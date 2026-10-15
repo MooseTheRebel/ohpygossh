@@ -10,7 +10,7 @@ require (
 )
 
 require (
-	github.com/go-python/gopy v0.4.11-0.20260730003934-d39a31b25439 // indirect; untagged commit, switch to a released tag when go-python/gopy publishes one
+	github.com/go-python/gopy v0.5.0
 	github.com/gonuts/commander v0.1.0 // indirect
 	github.com/gonuts/flag v0.1.0 // indirect
 	github.com/kr/fs v0.1.0 // indirect

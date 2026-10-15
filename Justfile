@@ -152,15 +152,16 @@ gopy-version-check:
         echo "      release now exists, run 'just gopy-version-bump' to switch."
     fi
 
-    if grep -RInE 'gopy@[0-9a-f]{40}' --include='*.yaml' --include='*.yml' --include='*.sh' .github build-scripts Justfile; then
-        echo "error: found a hardcoded gopy commit pin outside go.mod; derive it from go.mod instead" >&2
+    if grep -RInE 'gopy@([0-9a-f]{40}|v[0-9])' --include='*.yaml' --include='*.yml' --include='*.sh' .github build-scripts Justfile; then
+        echo "error: found a hardcoded gopy version pin outside go.mod; derive it from go.mod instead" >&2
         exit 1
     fi
     echo "no stray hardcoded gopy pins found"
 
-# Bump gopy to the tip of its default branch (go.mod/go.sum are the source of truth)
+# Bump gopy to its latest tagged release (go.mod/go.sum are the source of truth)
 gopy-version-bump:
-    # @master, not @latest: gopy's tags lag its default branch, so @latest
-    # would silently downgrade past commits this project relies on.
-    go get -tool github.com/go-python/gopy@master
+    # @latest resolves to the newest semver tag (see
+    # https://github.com/go-python/gopy/releases), keeping us off untagged
+    # pseudo-versions.
+    go get -tool github.com/go-python/gopy@latest
     go mod tidy
