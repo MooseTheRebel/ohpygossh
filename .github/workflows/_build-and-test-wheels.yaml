@@ -224,6 +224,11 @@ jobs:
         python3_version: ${{ fromJSON(needs.versions.outputs.python3_versions) }}
     runs-on: ${{ matrix.os }}
     steps:
+      # The host key tests and their sshd config live in the repo.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
       - name: Download wheel artifacts
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
@@ -262,3 +267,18 @@ jobs:
 
       - name: Smoke test
         run: python -c "from ohpygossh.gohpygossh import Hello; print(Hello())"
+
+      # The tests start a real, unprivileged sshd on 127.0.0.1; macOS ships
+      # /usr/sbin/sshd, Ubuntu runners need the package.
+      - name: Install OpenSSH server
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y openssh-server
+
+      # Use the pytest entry point, not `python -m pytest`, which would put the
+      # checkout root on sys.path ahead of the installed wheel.
+      - name: Host key integration tests
+        run: |
+          python -m pip install "pytest>=8,<10"
+          pytest -v -p no:cacheprovider tests/
+        env:
+          OHPYGOSSH_REQUIRE_SSHD: "1"
