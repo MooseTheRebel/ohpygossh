@@ -18,3 +18,9 @@ pytest = ">=8,<10"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+# Without this, ruff only treats ohpygossh as first-party when a local build
+# has left an ohpygossh/ directory in the repo root, so import sorting differs
+# between local runs and CI.
+[tool.ruff.lint.isort]
+known-first-party = ["ohpygossh"]
