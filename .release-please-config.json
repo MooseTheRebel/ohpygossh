@@ -1,6 +1,7 @@
 {
   "release-type": "simple",
   "include-v-in-tag": true,
+  "bump-minor-pre-major": true,
   "bootstrap-sha": "b0e87ba2663225b699c31251ba99db07166a8d62",
   "packages": {
     ".": {
