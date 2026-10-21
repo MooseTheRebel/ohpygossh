@@ -15,7 +15,7 @@ from pathlib import Path
 from shlex import split
 from shutil import copy, which
 
-GIT_ROOT = Path(__file__).parent.resolve()
+GIT_ROOT = Path(__file__).resolve().parent.parent
 DOCKER_IN_VAGRANT = GIT_ROOT / "ssh-servers" / "docker-in-vagrant"
 
 
@@ -150,8 +150,7 @@ def test_with_cloud_init():
         print("Python validation starting, for 'test_with_cloud_init'")
         from ohpygossh.gohpygossh import GenerateKeyPairAndCloudInit, KeysAndInit
 
-        this_file_dir = Path(__file__).parent
-        vagrant_test_dir = this_file_dir / "ssh-servers" / "cloud-init"
+        vagrant_test_dir = GIT_ROOT / "ssh-servers" / "cloud-init"
 
         with tempfile.TemporaryDirectory() as tmpDir:
             print("Created temporary directory", tmpDir)

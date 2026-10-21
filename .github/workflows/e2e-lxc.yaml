@@ -62,4 +62,4 @@ jobs:
         run: pip install wheelhouse/*.whl
 
       - name: Run e2e tests
-        run: python3 validate_ohpygossh.py --only=lxc
+        run: python3 tests/validate_ohpygossh.py --only=lxc

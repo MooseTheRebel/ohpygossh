@@ -130,7 +130,7 @@ validate:
 
     # Prove that the wheel can be installed, then validate functionality.
     pip install dist/ohpygossh-*.whl
-    python validate_ohpygossh.py
+    python tests/validate_ohpygossh.py
 
 # Remove build artifacts and the virtual environment
 clean:
