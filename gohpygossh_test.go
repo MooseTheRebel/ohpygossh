@@ -5,8 +5,10 @@ import (
 	"gohpygossh"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/larstobi/go-multipass/multipass"
 )
@@ -235,8 +237,31 @@ func TestRunWithMultipass(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Execute the 'ls' command on the remote server
-	output, err := gohpygossh.Run(hostname, r.CloudUser, r.SshKeyPath, "echo 'Connection success'")
+	// Pin the VM's host key, read over multipass's exec channel rather than
+	// SSH, so the connection below is verified. cloud-init may still be
+	// generating host keys, so retry briefly.
+	var fields []string
+	for range 10 {
+		var hostPub []byte
+		hostPub, err = exec.Command("multipass", "exec", dynVMName, "--",
+			"cat", "/etc/ssh/ssh_host_ed25519_key.pub").Output()
+		fields = strings.Fields(string(hostPub))
+		if err == nil && len(fields) >= 2 {
+			break
+		}
+		time.Sleep(3 * time.Second)
+	}
+	if err != nil || len(fields) < 2 {
+		t.Fatalf("reading VM host key: %v (fields: %q)", err, fields)
+	}
+	kh := filepath.Join(tmpDir, "known_hosts")
+	if err := os.WriteFile(kh, []byte(hostname+" "+fields[0]+" "+fields[1]+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	// Execute the 'echo' command on the remote server
+	output, err := gohpygossh.RunWithPolicy(hostname, r.CloudUser, r.SshKeyPath, "echo 'Connection success'",
+		&gohpygossh.HostKeyPolicy{KnownHostsPath: kh})
 	if err != nil {
 		t.Fatal(err)
 	}

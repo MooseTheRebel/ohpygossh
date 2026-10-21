@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -19,6 +20,7 @@ import (
 
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/knownhosts"
 )
 
 func Hello() string {
@@ -174,10 +176,25 @@ func PublicKeyFile(file string) ssh.AuthMethod {
 	return ssh.PublicKeys(key)
 }
 
-// newSSHClient dials an SSH connection using private-key authentication.
-// FIXME: host key verification is not yet implemented; connections are
-// currently vulnerable to MITM. See https://stackoverflow.com/a/63308243
-func newSSHClient(hostname, username, privateKey string) (*ssh.Client, error) {
+// splitHostPort splits "host:port" or "[host]:port"; a hostname without a
+// port (including "::1" or "[::1]") gets port 22. The host is lowercased, as
+// OpenSSH does before matching known_hosts.
+func splitHostPort(hostname string) (host, port string) {
+	host, port, err := net.SplitHostPort(hostname)
+	if err != nil {
+		host, port = strings.TrimSuffix(strings.TrimPrefix(hostname, "["), "]"), "22"
+	}
+	return strings.ToLower(host), port
+}
+
+// newSSHClient dials an SSH connection using private-key authentication,
+// trusting the server's host key only as policy allows.
+func newSSHClient(hostname, username, privateKey string, policy *HostKeyPolicy) (*ssh.Client, error) {
+	addr := net.JoinHostPort(splitHostPort(hostname))
+	hostKeyCallback, hostKeyAlgorithms, err := policy.clientConfig(addr)
+	if err != nil {
+		return nil, err
+	}
 	keyBytes, err := os.ReadFile(privateKey)
 	if err != nil {
 		return nil, err
@@ -187,16 +204,38 @@ func newSSHClient(hostname, username, privateKey string) (*ssh.Client, error) {
 		return nil, err
 	}
 	cfg := &ssh.ClientConfig{
-		User:            username,
-		Auth:            []ssh.AuthMethod{ssh.PublicKeys(signer)},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(), //nolint:gosec // known limitation, see FIXME above
-		Timeout:         60 * time.Second,
+		User:              username,
+		Auth:              []ssh.AuthMethod{ssh.PublicKeys(signer)},
+		HostKeyCallback:   hostKeyCallback,
+		HostKeyAlgorithms: hostKeyAlgorithms,
+		Timeout:           60 * time.Second,
 	}
-	return ssh.Dial("tcp", net.JoinHostPort(hostname, "22"), cfg)
+	client, err := ssh.Dial("tcp", addr, cfg)
+	var hkErr *hostKeyError
+	if errors.As(err, &hkErr) {
+		return nil, hkErr
+	}
+	// The server offers none of the key types trusted for it, so no key
+	// could be checked: report that as the mismatch it is.
+	var negErr *ssh.AlgorithmNegotiationError
+	if errors.As(err, &negErr) && negErr.What == "host key" && hostKeyAlgorithms != nil {
+		return nil, fmt.Errorf(
+			"ohpygossh: host key mismatch for %s: server offers %v host keys, but only %v are trusted for it; possible man-in-the-middle attack",
+			knownhosts.Normalize(addr), negErr.RequestedAlgorithms, hostKeyAlgorithms,
+		)
+	}
+	return client, err
 }
 
+// Run executes command on hostname ("host" or "host:port"), verifying the
+// server against ~/.ssh/known_hosts. See RunWithPolicy for other policies.
 func Run(hostname, username, privateKey, command string) (string, error) {
-	client, err := newSSHClient(hostname, username, privateKey)
+	return RunWithPolicy(hostname, username, privateKey, command, nil)
+}
+
+// RunWithPolicy is Run with an explicit host key policy; nil means the default.
+func RunWithPolicy(hostname, username, privateKey, command string, policy *HostKeyPolicy) (string, error) {
+	client, err := newSSHClient(hostname, username, privateKey, policy)
 	if err != nil {
 		return "", err
 	}
@@ -214,8 +253,15 @@ func Run(hostname, username, privateKey, command string) (string, error) {
 	return b.String(), err
 }
 
+// Upload copies localPath to remotePath over SFTP, verifying the server
+// against ~/.ssh/known_hosts. See UploadWithPolicy for other policies.
 func Upload(hostname, username, privateKey, localPath, remotePath string) error {
-	client, err := newSSHClient(hostname, username, privateKey)
+	return UploadWithPolicy(hostname, username, privateKey, localPath, remotePath, nil)
+}
+
+// UploadWithPolicy is Upload with an explicit host key policy; nil means the default.
+func UploadWithPolicy(hostname, username, privateKey, localPath, remotePath string, policy *HostKeyPolicy) error {
+	client, err := newSSHClient(hostname, username, privateKey, policy)
 	if err != nil {
 		return err
 	}
@@ -246,8 +292,15 @@ func Upload(hostname, username, privateKey, localPath, remotePath string) error 
 	return remoteFile.Close()
 }
 
+// Download copies remotePath to localPath over SFTP, verifying the server
+// against ~/.ssh/known_hosts. See DownloadWithPolicy for other policies.
 func Download(hostname, username, privateKey, remotePath, localPath string) error {
-	client, err := newSSHClient(hostname, username, privateKey)
+	return DownloadWithPolicy(hostname, username, privateKey, remotePath, localPath, nil)
+}
+
+// DownloadWithPolicy is Download with an explicit host key policy; nil means the default.
+func DownloadWithPolicy(hostname, username, privateKey, remotePath, localPath string, policy *HostKeyPolicy) error {
+	client, err := newSSHClient(hostname, username, privateKey, policy)
 	if err != nil {
 		return err
 	}

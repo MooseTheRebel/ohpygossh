@@ -52,6 +52,60 @@ Upload(ssh_server, ssh_user, private_key, "/local/file.txt", "/remote/file.txt")
 Download(ssh_server, ssh_user, private_key, "/remote/file.txt", "/local/file.txt")
 ```
 
+`ssh_server` may include a port, e.g. `"example.com:2222"` or `"[2001:db8::1]:2222"`.
+
+## Security: host key verification
+
+`Run`, `Upload` and `Download` verify the server's host key against
+`~/.ssh/known_hosts` and the system-wide `/etc/ssh/ssh_known_hosts`, the same
+files OpenSSH uses. If the host is missing, or its key has changed, they raise
+an error instead of connecting. That error is your protection against
+man-in-the-middle attacks.
+
+> **Upgrading from 0.8.x or earlier:** older versions accepted any host key.
+> Code that connects to hosts not in `~/.ssh/known_hosts` now raises; add the
+> hosts as described below.
+
+To trust a host, add its key to `known_hosts` after confirming its fingerprint
+through a channel you already trust. For example, run `ssh-keygen -lf
+/etc/ssh/ssh_host_ed25519_key.pub` on the server's console, or check your
+cloud provider's console output. `ssh-keyscan` alone only records whatever
+key answers first (trust on first use), so compare its output with that
+fingerprint.
+
+For other setups, pass a `HostKeyPolicy` to the `*WithPolicy` variants:
+
+```python
+from ohpygossh.gohpygossh import (
+    DownloadWithPolicy,
+    HostKeyPolicy,
+    RunWithPolicy,
+    UploadWithPolicy,
+)
+
+# Use a known_hosts file of your own
+policy = HostKeyPolicy(KnownHostsPath="/path/to/known_hosts")
+
+# Or pin the fingerprint of the server's Ed25519 host key, as printed by
+# `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub` on the server
+policy = HostKeyPolicy(Fingerprint="SHA256:...")
+
+output = RunWithPolicy(ssh_server, ssh_user, private_key, "ls -la", policy)
+UploadWithPolicy(
+    ssh_server, ssh_user, private_key, "/local/a.txt", "/remote/a.txt", policy
+)
+DownloadWithPolicy(
+    ssh_server, ssh_user, private_key, "/remote/a.txt", "/local/a.txt", policy
+)
+```
+
+Set at most one of `KnownHostsPath`, `Fingerprint` and
+`InsecureIgnoreHostKey`.
+
+`HostKeyPolicy(InsecureIgnoreHostKey=True)` turns verification off. Anyone
+able to intercept the connection can then read and alter everything you send
+and receive. Use it only for throwaway test machines.
+
 ## Development
 
 Development tasks are run with [`just`](https://github.com/casey/just), a
