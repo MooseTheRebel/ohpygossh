@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.9.0](https://github.com/MooseTheRebel/ohpygossh/compare/ohpygossh-v0.8.0...ohpygossh-v0.9.0) (2026-10-22)
+
+
+### ⚠ BREAKING CHANGES
+
+* verify SSH host keys by default ([#126](https://github.com/MooseTheRebel/ohpygossh/issues/126))
+
+### Bug Fixes
+
+* pin gopy v0.5.0 and bump via tags ([#120](https://github.com/MooseTheRebel/ohpygossh/issues/120)) ([f4c6866](https://github.com/MooseTheRebel/ohpygossh/commit/f4c6866c72683a07e68007fc47721e9bc528cc1d))
+* set bump-minor-pre-major in release-please ([#123](https://github.com/MooseTheRebel/ohpygossh/issues/123)) ([adf9971](https://github.com/MooseTheRebel/ohpygossh/commit/adf9971267ae6519cd4634fc577ae17e23272404))
+* verify SSH host keys by default ([#126](https://github.com/MooseTheRebel/ohpygossh/issues/126)) ([efa7b41](https://github.com/MooseTheRebel/ohpygossh/commit/efa7b41b2cec4974ac0b64490d532a6158b2f6b0))
+
+
+### Miscellaneous Chores
+
+* bump golang.org/x/crypto from 0.57.0 to 0.58.0 ([#125](https://github.com/MooseTheRebel/ohpygossh/issues/125)) ([820cb4b](https://github.com/MooseTheRebel/ohpygossh/commit/820cb4bf180e953c52ae35ebc595948813899c8d))
+
 ## [0.8.0](https://github.com/MooseTheRebel/ohpygossh/compare/ohpygossh-v0.7.0...ohpygossh-v0.8.0) (2026-10-14)
 
 
