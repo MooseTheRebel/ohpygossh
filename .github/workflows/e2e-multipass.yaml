@@ -69,4 +69,4 @@ jobs:
         run: pip install wheelhouse/*.whl
 
       - name: Run e2e tests
-        run: python3 validate_ohpygossh.py --only=multipass
+        run: python3 tests/validate_ohpygossh.py --only=multipass

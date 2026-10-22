@@ -15,7 +15,7 @@ from pathlib import Path
 from shlex import split
 from shutil import copy, which
 
-GIT_ROOT = Path(__file__).parent.resolve()
+GIT_ROOT = Path(__file__).resolve().parent.parent
 DOCKER_IN_VAGRANT = GIT_ROOT / "ssh-servers" / "docker-in-vagrant"
 
 
@@ -150,8 +150,7 @@ def test_with_cloud_init():
         print("Python validation starting, for 'test_with_cloud_init'")
         from ohpygossh.gohpygossh import GenerateKeyPairAndCloudInit, KeysAndInit
 
-        this_file_dir = Path(__file__).parent
-        vagrant_test_dir = this_file_dir / "ssh-servers" / "cloud-init"
+        vagrant_test_dir = GIT_ROOT / "ssh-servers" / "cloud-init"
 
         with tempfile.TemporaryDirectory() as tmpDir:
             print("Created temporary directory", tmpDir)
@@ -235,11 +234,77 @@ def _lxc_cmd() -> list:
     return ["lxc"]
 
 
-def _verify_ssh_and_sftp(ip: str, kai, tmp_dir: str) -> None:
-    """Run the SSH connectivity check and SFTP upload/download round-trip."""
-    from ohpygossh.gohpygossh import Download, GenerateShortUUID, Run, Upload
+def _pin_vm_host_key(ip: str, remote_exec: list, tmp_dir: str) -> str:
+    """Write a known_hosts file trusting the VM's Ed25519 host key.
 
-    output = Run(ip, kai.CloudUser, kai.SshKeyPath, "echo 'Connection success'")
+    The key is read through the hypervisor's exec channel (remote_exec, e.g.
+    ["lxc", "exec", name, "--"]), not over SSH, so it can be trusted. Only the
+    Ed25519 key is pinned although the VM also has RSA/ECDSA keys, which
+    checks that ohpygossh asks the server for a key type it can verify.
+    """
+    for attempt in range(10):
+        result = subprocess.run(
+            [*remote_exec, "cat", "/etc/ssh/ssh_host_ed25519_key.pub"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            break
+        print(f"Waiting for VM host key (attempt {attempt + 1}/10)...")
+        time.sleep(3)
+    else:
+        raise RuntimeError(f"Could not read VM host key: {result.stderr!r}")
+    algo, key = result.stdout.split()[:2]
+    known_hosts = os.path.join(tmp_dir, "known_hosts")
+    Path(known_hosts).write_text(f"{ip} {algo} {key}\n")
+    return known_hosts
+
+
+def _expect_host_key_rejected(ip: str, kai, known_hosts: str, phrase: str) -> None:
+    """Assert that connecting with known_hosts fails with phrase in the error."""
+    from ohpygossh.gohpygossh import HostKeyPolicy, RunWithPolicy
+
+    policy = HostKeyPolicy(KnownHostsPath=known_hosts)
+    try:
+        RunWithPolicy(ip, kai.CloudUser, kai.SshKeyPath, "true", policy)
+    except RuntimeError as e:
+        if phrase not in str(e):
+            raise RuntimeError(f"Expected {phrase!r} in error, got: {e}") from e
+        print(f"Host key correctly rejected ({phrase}): {e}")
+        return
+    raise RuntimeError(f"host key verification did not reject {ip} ({phrase})")
+
+
+def _verify_ssh_and_sftp(ip: str, kai, tmp_dir: str, remote_exec: list) -> None:
+    """Check host key verification, then run SSH and an SFTP round-trip."""
+    from ohpygossh.gohpygossh import (
+        DownloadWithPolicy,
+        GenerateShortUUID,
+        HostKeyPolicy,
+        RunWithPolicy,
+        UploadWithPolicy,
+    )
+
+    # Against the real VM, an unknown host and a wrong key must both be refused.
+    empty_known_hosts = os.path.join(tmp_dir, "known_hosts.empty")
+    Path(empty_known_hosts).write_text("")
+    _expect_host_key_rejected(ip, kai, empty_known_hosts, "unknown host")
+
+    wrong_key = os.path.join(tmp_dir, "wrong_host_key")
+    subprocess.run(
+        ["ssh-keygen", "-q", "-N", "", "-t", "ed25519", "-f", wrong_key], check=True
+    )
+    wrong_known_hosts = os.path.join(tmp_dir, "known_hosts.wrong")
+    algo, key = Path(f"{wrong_key}.pub").read_text().split()[:2]
+    Path(wrong_known_hosts).write_text(f"{ip} {algo} {key}\n")
+    _expect_host_key_rejected(ip, kai, wrong_known_hosts, "host key mismatch")
+
+    policy = HostKeyPolicy(KnownHostsPath=_pin_vm_host_key(ip, remote_exec, tmp_dir))
+
+    output = RunWithPolicy(
+        ip, kai.CloudUser, kai.SshKeyPath, "echo 'Connection success'", policy
+    )
 
     if "Connection success" not in output:
         raise RuntimeError(f"Unexpected SSH output: {output!r}")
@@ -255,17 +320,23 @@ def _verify_ssh_and_sftp(ip: str, kai, tmp_dir: str) -> None:
 
     Path(local_upload).write_text(upload_content)
 
-    Upload(ip, kai.CloudUser, kai.SshKeyPath, local_upload, remote_path)
+    UploadWithPolicy(
+        ip, kai.CloudUser, kai.SshKeyPath, local_upload, remote_path, policy
+    )
     print(f"Upload complete: {local_upload} -> {remote_path}")
 
-    cat_output = Run(ip, kai.CloudUser, kai.SshKeyPath, f"cat {remote_path}")
+    cat_output = RunWithPolicy(
+        ip, kai.CloudUser, kai.SshKeyPath, f"cat {remote_path}", policy
+    )
     if cat_output.strip() != upload_content.strip():
         raise RuntimeError(
             f"Remote file content mismatch after upload. Got: {cat_output!r}"
         )
     print("Remote file content verified via Run/cat.")
 
-    Download(ip, kai.CloudUser, kai.SshKeyPath, remote_path, local_download)
+    DownloadWithPolicy(
+        ip, kai.CloudUser, kai.SshKeyPath, remote_path, local_download, policy
+    )
     print(f"Download complete: {remote_path} -> {local_download}")
 
     downloaded_content = Path(local_download).read_text()
@@ -342,7 +413,7 @@ def test_with_multipass():
                 ip = ipv4_addresses[0]
                 print(f"VM IP: {ip}")
 
-                _verify_ssh_and_sftp(ip, kai, tmpDir)
+                _verify_ssh_and_sftp(ip, kai, tmpDir, [*mp, "exec", vm_name, "--"])
 
             finally:
                 print(f"Deleting multipass VM: {vm_name}")
@@ -492,7 +563,7 @@ def test_with_lxc():
                         f"{ci_result.returncode}"
                     )
 
-                _verify_ssh_and_sftp(ip, kai, tmpDir)
+                _verify_ssh_and_sftp(ip, kai, tmpDir, [*lxc, "exec", vm_name, "--"])
 
             finally:
                 print(f"Deleting LXC container: {vm_name}")

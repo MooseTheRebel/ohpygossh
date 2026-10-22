@@ -1,0 +1,12 @@
+ListenAddress 127.0.0.1
+Port @PORT@
+@HOST_KEY_LINES@
+PidFile @DIR@/sshd.pid
+AuthorizedKeysFile @DIR@/authorized_keys
+UsePAM no
+StrictModes no
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PubkeyAuthentication yes
+Subsystem sftp internal-sftp
+LogLevel VERBOSE

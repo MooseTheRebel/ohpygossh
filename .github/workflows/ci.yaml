@@ -69,8 +69,16 @@ jobs:
       - name: just lint
         run: just lint
 
+      # The Go tests start a real, unprivileged sshd on 127.0.0.1; macOS ships
+      # /usr/sbin/sshd, Ubuntu runners need the package.
+      - name: Install OpenSSH server
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y openssh-server
+
       - name: just test
         run: just test
+        env:
+          OHPYGOSSH_REQUIRE_SSHD: "1"
 
   build-and-test-wheels:
     uses: $/.github/workflows/_build-and-test-wheels.yaml
