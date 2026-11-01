@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.9.1](https://github.com/MooseTheRebel/ohpygossh/compare/ohpygossh-v0.9.0...ohpygossh-v0.9.1) (2026-10-30)
+
+
+### Miscellaneous Chores
+
+* bump actions/setup-python from 7.0.0 to 7.1.0 ([#127](https://github.com/MooseTheRebel/ohpygossh/issues/127)) ([39d8569](https://github.com/MooseTheRebel/ohpygossh/commit/39d85694dcd529878e2e5098bc7d93e2fa4f3873))
+* bump pypa/cibuildwheel from 4.3.1 to 4.3.3 ([#129](https://github.com/MooseTheRebel/ohpygossh/issues/129)) ([bd7a15b](https://github.com/MooseTheRebel/ohpygossh/commit/bd7a15bc6450facf26177ebd03fc405055c8d574))
+* bump pypa/gh-action-pypi-publish from 1.14.2 to 1.14.3 ([#128](https://github.com/MooseTheRebel/ohpygossh/issues/128)) ([265c607](https://github.com/MooseTheRebel/ohpygossh/commit/265c607d0caf4cb11dbc5946642b4a1a09a0f643))
+
 ## [0.9.0](https://github.com/MooseTheRebel/ohpygossh/compare/ohpygossh-v0.8.0...ohpygossh-v0.9.0) (2026-10-22)
 
 
