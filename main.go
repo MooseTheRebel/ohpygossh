@@ -235,22 +235,85 @@ func Run(hostname, username, privateKey, command string) (string, error) {
 
 // RunWithPolicy is Run with an explicit host key policy; nil means the default.
 func RunWithPolicy(hostname, username, privateKey, command string, policy *HostKeyPolicy) (string, error) {
-	client, err := newSSHClient(hostname, username, privateKey, policy)
+	res, err := runCommand(hostname, username, privateKey, command, &RunOptions{Policy: policy})
+	return res.Stdout, err
+}
+
+// RunOptions configures RunWithOptions. A nil *RunOptions means the defaults.
+type RunOptions struct {
+	// Policy decides which host keys to trust; nil means the default policy.
+	Policy *HostKeyPolicy
+	// TimeoutSeconds bounds how long the command may run; 0 means no limit.
+	TimeoutSeconds float64
+}
+
+// RunResult is the outcome of a command that ran to completion.
+type RunResult struct {
+	Stdout   string
+	Stderr   string
+	ExitCode int
+}
+
+// RunWithOptions executes command on hostname and returns its stdout, stderr
+// and exit code. A non-zero exit is reported in ExitCode, not as an error.
+func RunWithOptions(hostname, username, privateKey, command string, opts *RunOptions) (RunResult, error) {
+	res, err := runCommand(hostname, username, privateKey, command, opts)
+	var exitErr *ssh.ExitError
+	if errors.As(err, &exitErr) {
+		return res, nil
+	}
+	return res, err
+}
+
+// runCommand runs command and returns the session's own error, so a non-zero
+// exit is still an *ssh.ExitError for callers that treat it as failure.
+func runCommand(hostname, username, privateKey, command string, opts *RunOptions) (RunResult, error) {
+	if opts == nil {
+		opts = &RunOptions{}
+	}
+	client, err := newSSHClient(hostname, username, privateKey, opts.Policy)
 	if err != nil {
-		return "", err
+		return RunResult{}, err
 	}
 	defer client.Close()
 
 	session, err := client.NewSession()
 	if err != nil {
-		return "", err
+		return RunResult{}, err
 	}
 	defer session.Close()
 
-	var b bytes.Buffer
-	session.Stdout = &b
-	err = session.Run(command)
-	return b.String(), err
+	var stdout, stderr bytes.Buffer
+	session.Stdout = &stdout
+	session.Stderr = &stderr
+	done := make(chan error, 1)
+	go func() { done <- session.Run(command) }()
+
+	var timedOut <-chan time.Time
+	timeout := time.Duration(opts.TimeoutSeconds * float64(time.Second))
+	if timeout > 0 {
+		timer := time.NewTimer(timeout)
+		defer timer.Stop()
+		timedOut = timer.C
+	}
+
+	select {
+	case err = <-done:
+	case <-timedOut:
+		// Closing the connection unblocks session.Run; wait for it so the
+		// buffers are no longer being written.
+		session.Close()
+		client.Close()
+		<-done
+		err = fmt.Errorf("ohpygossh: command timed out after %v", timeout)
+	}
+
+	res := RunResult{Stdout: stdout.String(), Stderr: stderr.String()}
+	var exitErr *ssh.ExitError
+	if errors.As(err, &exitErr) {
+		res.ExitCode = exitErr.ExitStatus()
+	}
+	return res, err
 }
 
 // Upload copies localPath to remotePath over SFTP, verifying the server

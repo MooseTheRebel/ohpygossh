@@ -10,6 +10,8 @@ from conftest import fingerprint, keygen
 from ohpygossh.gohpygossh import (
     DownloadWithPolicy,
     HostKeyPolicy,
+    RunOptions,
+    RunWithOptions,
     RunWithPolicy,
     UploadWithPolicy,
 )
@@ -85,6 +87,30 @@ def test_insecure_opt_in(sshd):
         HostKeyPolicy(InsecureIgnoreHostKey=True),
     )
     assert out.strip() == "ohpygossh-ok"
+
+
+def test_run_with_options_returns_stdout_stderr_exit_code(sshd, tmp_path):
+    kh = sshd.write_known_hosts(tmp_path / "known_hosts")
+    res = RunWithOptions(
+        sshd.addr,
+        sshd.user,
+        sshd.client_key,
+        "sh -c 'echo out; echo err >&2; exit 3'",
+        RunOptions(Policy=HostKeyPolicy(KnownHostsPath=str(kh))),
+    )
+    assert (res.Stdout, res.Stderr, res.ExitCode) == ("out\n", "err\n", 3)
+
+
+def test_run_with_options_timeout(sshd, tmp_path):
+    kh = sshd.write_known_hosts(tmp_path / "known_hosts")
+    with pytest.raises(RuntimeError, match="command timed out after 1s"):
+        RunWithOptions(
+            sshd.addr,
+            sshd.user,
+            sshd.client_key,
+            "sleep 30",
+            RunOptions(Policy=HostKeyPolicy(KnownHostsPath=str(kh)), TimeoutSeconds=1),
+        )
 
 
 def test_upload_download_round_trip(sshd, tmp_path):
