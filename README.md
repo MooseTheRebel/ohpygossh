@@ -73,13 +73,15 @@ cloud provider's console output. `ssh-keyscan` alone only records whatever
 key answers first (trust on first use), so compare its output with that
 fingerprint.
 
-For other setups, pass a `HostKeyPolicy` to the `*WithPolicy` variants:
+For other setups, pass a `HostKeyPolicy` to `RunWithOptions` (inside
+`RunOptions`), `UploadWithPolicy` or `DownloadWithPolicy`:
 
 ```python
 from ohpygossh.gohpygossh import (
     DownloadWithPolicy,
     HostKeyPolicy,
-    RunWithPolicy,
+    RunOptions,
+    RunWithOptions,
     UploadWithPolicy,
 )
 
@@ -90,7 +92,10 @@ policy = HostKeyPolicy(KnownHostsPath="/path/to/known_hosts")
 # `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub` on the server
 policy = HostKeyPolicy(Fingerprint="SHA256:...")
 
-output = RunWithPolicy(ssh_server, ssh_user, private_key, "ls -la", policy)
+res = RunWithOptions(
+    ssh_server, ssh_user, private_key, "ls -la", RunOptions(Policy=policy)
+)
+print(res.Stdout, res.Stderr, res.ExitCode)
 UploadWithPolicy(
     ssh_server, ssh_user, private_key, "/local/a.txt", "/remote/a.txt", policy
 )

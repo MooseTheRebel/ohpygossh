@@ -42,10 +42,12 @@ func TestRunWithOptionsTimeout(t *testing.T) {
 
 // Run keeps its old contract: stdout only, and an error for a non-zero exit.
 func TestRunNonZeroExitStillErrors(t *testing.T) {
-	t.Parallel()
 	s := startSSHD(t)
-	out, err := gohpygossh.RunWithPolicy(s.Addr, s.User, s.ClientKey,
-		"sh -c 'echo out; exit 3'", knownHostsOptions(t, s).Policy)
+	gohpygossh.SetGlobalKnownHostsPath(t, filepath.Join(t.TempDir(), "absent"))
+	home := t.TempDir()
+	s.writeKnownHosts(t, filepath.Join(home, ".ssh", "known_hosts"))
+	t.Setenv("HOME", home)
+	out, err := gohpygossh.Run(s.Addr, s.User, s.ClientKey, "sh -c 'echo out; exit 3'")
 	if out != "out\n" {
 		t.Fatalf("out = %q", out)
 	}

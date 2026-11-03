@@ -263,11 +263,11 @@ def _pin_vm_host_key(ip: str, remote_exec: list, tmp_dir: str) -> str:
 
 def _expect_host_key_rejected(ip: str, kai, known_hosts: str, phrase: str) -> None:
     """Assert that connecting with known_hosts fails with phrase in the error."""
-    from ohpygossh.gohpygossh import HostKeyPolicy, RunWithPolicy
+    from ohpygossh.gohpygossh import HostKeyPolicy, RunOptions, RunWithOptions
 
-    policy = HostKeyPolicy(KnownHostsPath=known_hosts)
+    opts = RunOptions(Policy=HostKeyPolicy(KnownHostsPath=known_hosts))
     try:
-        RunWithPolicy(ip, kai.CloudUser, kai.SshKeyPath, "true", policy)
+        RunWithOptions(ip, kai.CloudUser, kai.SshKeyPath, "true", opts)
     except RuntimeError as e:
         if phrase not in str(e):
             raise RuntimeError(f"Expected {phrase!r} in error, got: {e}") from e
@@ -282,7 +282,8 @@ def _verify_ssh_and_sftp(ip: str, kai, tmp_dir: str, remote_exec: list) -> None:
         DownloadWithPolicy,
         GenerateShortUUID,
         HostKeyPolicy,
-        RunWithPolicy,
+        RunOptions,
+        RunWithOptions,
         UploadWithPolicy,
     )
 
@@ -301,10 +302,11 @@ def _verify_ssh_and_sftp(ip: str, kai, tmp_dir: str, remote_exec: list) -> None:
     _expect_host_key_rejected(ip, kai, wrong_known_hosts, "host key mismatch")
 
     policy = HostKeyPolicy(KnownHostsPath=_pin_vm_host_key(ip, remote_exec, tmp_dir))
+    opts = RunOptions(Policy=policy)
 
-    output = RunWithPolicy(
-        ip, kai.CloudUser, kai.SshKeyPath, "echo 'Connection success'", policy
-    )
+    output = RunWithOptions(
+        ip, kai.CloudUser, kai.SshKeyPath, "echo 'Connection success'", opts
+    ).Stdout
 
     if "Connection success" not in output:
         raise RuntimeError(f"Unexpected SSH output: {output!r}")
@@ -325,9 +327,9 @@ def _verify_ssh_and_sftp(ip: str, kai, tmp_dir: str, remote_exec: list) -> None:
     )
     print(f"Upload complete: {local_upload} -> {remote_path}")
 
-    cat_output = RunWithPolicy(
-        ip, kai.CloudUser, kai.SshKeyPath, f"cat {remote_path}", policy
-    )
+    cat_output = RunWithOptions(
+        ip, kai.CloudUser, kai.SshKeyPath, f"cat {remote_path}", opts
+    ).Stdout
     if cat_output.strip() != upload_content.strip():
         raise RuntimeError(
             f"Remote file content mismatch after upload. Got: {cat_output!r}"

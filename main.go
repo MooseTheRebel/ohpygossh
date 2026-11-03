@@ -228,14 +228,9 @@ func newSSHClient(hostname, username, privateKey string, policy *HostKeyPolicy) 
 }
 
 // Run executes command on hostname ("host" or "host:port"), verifying the
-// server against ~/.ssh/known_hosts. See RunWithPolicy for other policies.
+// server against ~/.ssh/known_hosts. See RunWithOptions for other policies.
 func Run(hostname, username, privateKey, command string) (string, error) {
-	return RunWithPolicy(hostname, username, privateKey, command, nil)
-}
-
-// RunWithPolicy is Run with an explicit host key policy; nil means the default.
-func RunWithPolicy(hostname, username, privateKey, command string, policy *HostKeyPolicy) (string, error) {
-	res, err := runCommand(hostname, username, privateKey, command, &RunOptions{Policy: policy})
+	res, err := runCommand(hostname, username, privateKey, command, nil)
 	return res.Stdout, err
 }
 

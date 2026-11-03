@@ -36,8 +36,15 @@ func writeFile(t *testing.T, path, content string) {
 	}
 }
 
+// runWithPolicy runs command under policy and returns its stdout.
+func runWithPolicy(hostname, username, privateKey, command string, policy *gohpygossh.HostKeyPolicy) (string, error) {
+	res, err := gohpygossh.RunWithOptions(hostname, username, privateKey, command,
+		&gohpygossh.RunOptions{Policy: policy})
+	return res.Stdout, err
+}
+
 func runWithKnownHosts(s *testSSHD, kh string) (string, error) {
-	return gohpygossh.RunWithPolicy(s.Addr, s.User, s.ClientKey, "echo ohpygossh-ok",
+	return runWithPolicy(s.Addr, s.User, s.ClientKey, "echo ohpygossh-ok",
 		&gohpygossh.HostKeyPolicy{KnownHostsPath: kh})
 }
 
@@ -141,7 +148,7 @@ func TestKnownHostByNameAccepted(t *testing.T) {
 	s := startSSHD(t)
 	kh := filepath.Join(t.TempDir(), "known_hosts")
 	writeFile(t, kh, fmt.Sprintf("[localhost]:%d %s\n", s.Port, s.HostPubKeys["ed25519"]))
-	out, err := gohpygossh.RunWithPolicy(fmt.Sprintf("localhost:%d", s.Port), s.User, s.ClientKey,
+	out, err := runWithPolicy(fmt.Sprintf("localhost:%d", s.Port), s.User, s.ClientKey,
 		"echo ohpygossh-ok", &gohpygossh.HostKeyPolicy{KnownHostsPath: kh})
 	wantOK(t, out, err)
 }
@@ -222,7 +229,7 @@ func TestFingerprintPinAccepted(t *testing.T) {
 	t.Parallel()
 	s := startSSHD(t)
 	fp := fingerprint(t, filepath.Join(s.Dir, "host_ed25519.pub"))
-	out, err := gohpygossh.RunWithPolicy(s.Addr, s.User, s.ClientKey, "echo ohpygossh-ok",
+	out, err := runWithPolicy(s.Addr, s.User, s.ClientKey, "echo ohpygossh-ok",
 		&gohpygossh.HostKeyPolicy{Fingerprint: fp})
 	wantOK(t, out, err)
 }
@@ -232,7 +239,7 @@ func TestFingerprintPinRejected(t *testing.T) {
 	s := startSSHD(t)
 	other := filepath.Join(t.TempDir(), "other.pub")
 	writeFile(t, other, freshPubKey(t, "ed25519")+"\n")
-	_, err := gohpygossh.RunWithPolicy(s.Addr, s.User, s.ClientKey, "echo ohpygossh-ok",
+	_, err := runWithPolicy(s.Addr, s.User, s.ClientKey, "echo ohpygossh-ok",
 		&gohpygossh.HostKeyPolicy{Fingerprint: fingerprint(t, other)})
 	wantErrContaining(t, err, "host key mismatch", "expected SHA256:")
 }
@@ -245,7 +252,7 @@ func policyErrorBeforeDial(t *testing.T, policy *gohpygossh.HostKeyPolicy) error
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = gohpygossh.RunWithPolicy("127.0.0.1:1", "u", keys.PrivKeyAbsPath, "true", policy)
+	_, err = runWithPolicy("127.0.0.1:1", "u", keys.PrivKeyAbsPath, "true", policy)
 	if err != nil && strings.Contains(err.Error(), "connection refused") {
 		t.Fatalf("policy was not validated before dialing: %v", err)
 	}
@@ -261,7 +268,7 @@ func TestFingerprintMalformedRejected(t *testing.T) {
 func TestInsecureOptInAccepted(t *testing.T) {
 	s := startSSHD(t)
 	t.Setenv("HOME", t.TempDir())
-	out, err := gohpygossh.RunWithPolicy(s.Addr, s.User, s.ClientKey, "echo ohpygossh-ok",
+	out, err := runWithPolicy(s.Addr, s.User, s.ClientKey, "echo ohpygossh-ok",
 		&gohpygossh.HostKeyPolicy{InsecureIgnoreHostKey: true})
 	wantOK(t, out, err)
 }
@@ -287,7 +294,7 @@ func TestFingerprintPinOfEd25519KeyAcceptedWhenServerHasSeveralKeys(t *testing.T
 	t.Parallel()
 	s := startSSHD(t, "rsa", "ecdsa", "ed25519")
 	fp := fingerprint(t, filepath.Join(s.Dir, "host_ed25519.pub"))
-	out, err := gohpygossh.RunWithPolicy(s.Addr, s.User, s.ClientKey, "echo ohpygossh-ok",
+	out, err := runWithPolicy(s.Addr, s.User, s.ClientKey, "echo ohpygossh-ok",
 		&gohpygossh.HostKeyPolicy{Fingerprint: fp})
 	wantOK(t, out, err)
 }
@@ -320,7 +327,7 @@ func TestHostnameMatchIsCaseInsensitive(t *testing.T) {
 	s := startSSHD(t)
 	kh := filepath.Join(t.TempDir(), "known_hosts")
 	writeFile(t, kh, fmt.Sprintf("[localhost]:%d %s\n", s.Port, s.HostPubKeys["ed25519"]))
-	out, err := gohpygossh.RunWithPolicy(fmt.Sprintf("LocalHost:%d", s.Port), s.User, s.ClientKey,
+	out, err := runWithPolicy(fmt.Sprintf("LocalHost:%d", s.Port), s.User, s.ClientKey,
 		"echo ohpygossh-ok", &gohpygossh.HostKeyPolicy{KnownHostsPath: kh})
 	wantOK(t, out, err)
 }

@@ -12,7 +12,6 @@ from ohpygossh.gohpygossh import (
     HostKeyPolicy,
     RunOptions,
     RunWithOptions,
-    RunWithPolicy,
     UploadWithPolicy,
 )
 
@@ -27,13 +26,13 @@ def test_imports_installed_wheel_not_checkout():
 
 def test_known_host_accepted(sshd, tmp_path):
     kh = sshd.write_known_hosts(tmp_path / "known_hosts")
-    out = RunWithPolicy(
+    out = RunWithOptions(
         sshd.addr,
         sshd.user,
         sshd.client_key,
         "echo ohpygossh-ok",
-        HostKeyPolicy(KnownHostsPath=str(kh)),
-    )
+        RunOptions(Policy=HostKeyPolicy(KnownHostsPath=str(kh))),
+    ).Stdout
     assert out.strip() == "ohpygossh-ok"
 
 
@@ -43,12 +42,12 @@ def test_unknown_host_rejected(sshd, tmp_path):
     with pytest.raises(
         RuntimeError, match=r"unknown host \[127\.0\.0\.1\]:\d+.*SHA256:"
     ):
-        RunWithPolicy(
+        RunWithOptions(
             sshd.addr,
             sshd.user,
             sshd.client_key,
             "true",
-            HostKeyPolicy(KnownHostsPath=str(kh)),
+            RunOptions(Policy=HostKeyPolicy(KnownHostsPath=str(kh))),
         )
 
 
@@ -57,35 +56,35 @@ def test_changed_host_key_rejected(sshd, tmp_path):
     kh = tmp_path / "known_hosts"
     kh.write_text(f"[127.0.0.1]:{sshd.port} {other}\n")
     with pytest.raises(RuntimeError, match="host key mismatch.*man-in-the-middle"):
-        RunWithPolicy(
+        RunWithOptions(
             sshd.addr,
             sshd.user,
             sshd.client_key,
             "true",
-            HostKeyPolicy(KnownHostsPath=str(kh)),
+            RunOptions(Policy=HostKeyPolicy(KnownHostsPath=str(kh))),
         )
 
 
 def test_fingerprint_pin_accepted(sshd):
     fp = fingerprint(sshd.dir / "host_ed25519.pub")
-    out = RunWithPolicy(
+    out = RunWithOptions(
         sshd.addr,
         sshd.user,
         sshd.client_key,
         "echo ohpygossh-ok",
-        HostKeyPolicy(Fingerprint=fp),
-    )
+        RunOptions(Policy=HostKeyPolicy(Fingerprint=fp)),
+    ).Stdout
     assert out.strip() == "ohpygossh-ok"
 
 
 def test_insecure_opt_in(sshd):
-    out = RunWithPolicy(
+    out = RunWithOptions(
         sshd.addr,
         sshd.user,
         sshd.client_key,
         "echo ohpygossh-ok",
-        HostKeyPolicy(InsecureIgnoreHostKey=True),
-    )
+        RunOptions(Policy=HostKeyPolicy(InsecureIgnoreHostKey=True)),
+    ).Stdout
     assert out.strip() == "ohpygossh-ok"
 
 
