@@ -260,7 +260,7 @@ func TestRunWithMultipass(t *testing.T) {
 	}
 
 	// Execute the 'echo' command on the remote server
-	output, err := gohpygossh.RunWithPolicy(hostname, r.CloudUser, r.SshKeyPath, "echo 'Connection success'",
+	output, err := runWithPolicy(hostname, r.CloudUser, r.SshKeyPath, "echo 'Connection success'",
 		&gohpygossh.HostKeyPolicy{KnownHostsPath: kh})
 	if err != nil {
 		t.Fatal(err)
