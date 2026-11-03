@@ -73,15 +73,15 @@ from ohpygossh.gohpygossh import (
     UploadWithPolicy,
 )
 
+# No verification (test machines only)
+policy = HostKeyPolicy(InsecureIgnoreHostKey=True)
+
 # Use a known_hosts file of your own
 policy = HostKeyPolicy(KnownHostsPath="/path/to/known_hosts")
 
 # Or pin the fingerprint of the server's Ed25519 host key, as printed by
 # `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub` on the server
 policy = HostKeyPolicy(Fingerprint="SHA256:...")
-
-# No verification (test machines only)
-policy = HostKeyPolicy(InsecureIgnoreHostKey=True)
 
 res = RunWithOptions(
     ssh_server, ssh_user, private_key, "ls -la", RunOptions(Policy=policy)
