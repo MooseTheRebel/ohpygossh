@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.0](https://github.com/MooseTheRebel/ohpygossh/compare/ohpygossh-v0.9.1...ohpygossh-v0.10.0) (2026-11-03)
+
+
+### Features
+
+* add RunWithOptions with stderr, and exit code ([#133](https://github.com/MooseTheRebel/ohpygossh/issues/133)) ([370926b](https://github.com/MooseTheRebel/ohpygossh/commit/370926bc7f37c39ac9de9f66d5469d155f0d4258))
+
 ## [0.9.1](https://github.com/MooseTheRebel/ohpygossh/compare/ohpygossh-v0.9.0...ohpygossh-v0.9.1) (2026-10-30)
 
 
