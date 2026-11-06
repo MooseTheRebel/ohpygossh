@@ -6,7 +6,7 @@ require golang.org/x/crypto v0.58.0
 
 require (
 	github.com/larstobi/go-multipass v1.3.0
-	github.com/pkg/sftp v1.13.11
+	github.com/pkg/sftp v1.13.12
 )
 
 require (
