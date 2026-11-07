@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.10.2](https://github.com/MooseTheRebel/ohpygossh/compare/ohpygossh-v0.10.1...ohpygossh-v0.10.2) (2026-11-07)
+
+
+### Bug Fixes
+
+* dependabot should update 'gopy' & 'golang.org/x/tools' ([#142](https://github.com/MooseTheRebel/ohpygossh/issues/142)) ([4b7ea6b](https://github.com/MooseTheRebel/ohpygossh/commit/4b7ea6be9137583c3e04c405675bd164130636cf))
+
+
+### Miscellaneous Chores
+
+* bump golang.org/x/tools from 0.29.0 to 0.52.0 ([#144](https://github.com/MooseTheRebel/ohpygossh/issues/144)) ([5ccbe04](https://github.com/MooseTheRebel/ohpygossh/commit/5ccbe04315a497e500821374e7e4b38e431217ee))
+
 ## [0.10.1](https://github.com/MooseTheRebel/ohpygossh/compare/ohpygossh-v0.10.0...ohpygossh-v0.10.1) (2026-11-07)
 
 
