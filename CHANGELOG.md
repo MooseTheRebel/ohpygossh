@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.10.1](https://github.com/MooseTheRebel/ohpygossh/compare/ohpygossh-v0.10.0...ohpygossh-v0.10.1) (2026-11-07)
+
+
+### Bug Fixes
+
+* drop QEMU emulation, fix actionlint findings ([#140](https://github.com/MooseTheRebel/ohpygossh/issues/140)) ([a307a8c](https://github.com/MooseTheRebel/ohpygossh/commit/a307a8cc83d05db95ee5f1f2fd2c3e3b93ddc747))
+
+
+### Miscellaneous Chores
+
+* bump github.com/pkg/sftp from 1.13.11 to 1.13.12 ([#135](https://github.com/MooseTheRebel/ohpygossh/issues/135)) ([fd62cce](https://github.com/MooseTheRebel/ohpygossh/commit/fd62cce5c8145fda1027dd2fe132f8220877a2a2))
+* bump pypa/cibuildwheel from 4.3.3 to 4.3.5 ([#136](https://github.com/MooseTheRebel/ohpygossh/issues/136)) ([9765720](https://github.com/MooseTheRebel/ohpygossh/commit/9765720c85ba62f21d608ea97f9360898a830723))
+* bump pytest from 9.1.1 to 9.2.0 ([#137](https://github.com/MooseTheRebel/ohpygossh/issues/137)) ([50ffe17](https://github.com/MooseTheRebel/ohpygossh/commit/50ffe176166292bb65c1fab5bf8af9690e6083a1))
+
 ## [0.10.0](https://github.com/MooseTheRebel/ohpygossh/compare/ohpygossh-v0.9.1...ohpygossh-v0.10.0) (2026-11-03)
 
 
