@@ -9,7 +9,7 @@
 # The `versions` job below is the single place that lists supported Python
 # versions (as a minor-version suffix, e.g. 11 for 3.11): its output feeds
 # the macOS build matrix, the smoke-test matrix, and (via a per-job
-# CIBW_BUILD selector derived with jq) both Linux build jobs. This keeps
+# CIBW_BUILD selector derived with jq) every Linux build leg. This keeps
 # Linux from building -- and publish.yml from shipping -- any interpreter
 # newer than what's actually declared supported and smoke-tested. To add a
 # new version (e.g. 3.xx), add it there -- nowhere else.
@@ -71,7 +71,7 @@ jobs:
           # The runner image's Homebrew metadata can predate a new Python
           # formula (e.g. python@3.15); refresh it only when the formula is unknown.
           brew info --formula "python@3.${MATRIX_PYTHON3_VERSION}" >/dev/null 2>&1 || brew update
-          brew install --force --overwrite python@3.${MATRIX_PYTHON3_VERSION}
+          brew install --force --overwrite "python@3.${MATRIX_PYTHON3_VERSION}"
           BREW_PREFIX="$(brew --prefix)"
           ln -s "$BREW_PREFIX/opt/python@3.${MATRIX_PYTHON3_VERSION}/bin/python3.${MATRIX_PYTHON3_VERSION}" "$BREW_PREFIX/bin/python_for_build"
           echo "PYTHON_FOR_BUILD=$BREW_PREFIX/bin/python_for_build" >> "$GITHUB_ENV"
@@ -114,10 +114,18 @@ jobs:
           name: wheels-macos${{ matrix.os_version }}-py3${{ matrix.python3_version }}-${{ matrix.arch_cibw_go[0] }}
           path: ./wheelhouse/*.whl
 
-  build_linux_x86_64:
+  # NOTE: build on native arm64 runners (not QEMU which is significantly slower).
+  build_linux:
     needs: versions
-    name: Linux Python x86_64
-    runs-on: ubuntu-22.04
+    name: Linux ${{ matrix.arch }} ${{ matrix.libc }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: ubuntu-22.04,     arch: x86_64,  goarch: amd64, libc: manylinux }
+          - { runner: ubuntu-24.04-arm, arch: aarch64, goarch: arm64, libc: manylinux }
+          - { runner: ubuntu-24.04-arm, arch: aarch64, goarch: arm64, libc: musllinux }
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -135,21 +143,22 @@ jobs:
 
       - name: Compute CIBW_BUILD selector from supported versions
         run: |
-          pattern="$(echo "$NEEDS_VERSIONS_OUTPUTS_PYTHON3_VERSIONS" | jq -r '[.[] | "cp3\(.)-*"] | join(" ")')"
+          pattern="$(echo "$NEEDS_VERSIONS_OUTPUTS_PYTHON3_VERSIONS" \
+            | jq -r --arg libc "$MATRIX_LIBC" '[.[] | "cp3\(.)-\($libc)_*"] | join(" ")')"
           echo "CIBW_BUILD_PATTERN=$pattern" >> "$GITHUB_ENV"
         env:
           NEEDS_VERSIONS_OUTPUTS_PYTHON3_VERSIONS: ${{ needs.versions.outputs.python3_versions }}
+          MATRIX_LIBC: ${{ matrix.libc }}
 
       - name: Build wheels
         uses: pypa/cibuildwheel@f9b966cfadf4109556cadc5bb39ddb72d0ce664e # v4.3.5
         env:
           CIBW_BUILD: ${{ env.CIBW_BUILD_PATTERN }}
-          CIBW_SKIP: "*-musllinux_x86_64"
           CIBW_ARCHS: "native"
           CIBW_ENVIRONMENT: >
             PATH=$PATH:/usr/local/go/bin
           CIBW_BEFORE_ALL_LINUX: |
-            curl -o go.tar.gz https://dl.google.com/go/go1.26.8.linux-amd64.tar.gz
+            curl -fsSL -o go.tar.gz https://dl.google.com/go/go1.26.8.linux-${{ matrix.goarch }}.tar.gz
             tar -C /usr/local -xzf go.tar.gz
             go install "github.com/go-python/gopy@$(go list -m -f '{{.Version}}' github.com/go-python/gopy)"
             go install "golang.org/x/tools/cmd/goimports@$(go list -m -f '{{.Version}}' golang.org/x/tools)"
@@ -157,65 +166,11 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
-          name: wheels-linux-amd64
-          path: ./wheelhouse/*.whl
-
-  build_linux_arm:
-    needs: versions
-    name: Linux Python ARM
-    runs-on: ubuntu-22.04
-
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-
-      - name: Setup project files
-        run: |
-            rm -rf poetry.lock pyproject.toml
-            cat > pyproject.toml << 'EOF'
-            [build-system]
-            requires = ["setuptools>=40.8.0", "pybindgen"]
-            build-backend = "setuptools.build_meta"
-            EOF
-
-      # QEMU is used by cibuildwheel to cross-compile wheels
-      # https://cibuildwheel.pypa.io/en/stable/faq/#emulation
-      - name: Set up QEMU
-        if: runner.os == 'Linux'
-        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4
-        with:
-          platforms: all
-
-      - name: Compute CIBW_BUILD selector from supported versions
-        run: |
-          pattern="$(echo "$NEEDS_VERSIONS_OUTPUTS_PYTHON3_VERSIONS" | jq -r '[.[] | "cp3\(.)-*"] | join(" ")')"
-          echo "CIBW_BUILD_PATTERN=$pattern" >> "$GITHUB_ENV"
-        env:
-          NEEDS_VERSIONS_OUTPUTS_PYTHON3_VERSIONS: ${{ needs.versions.outputs.python3_versions }}
-
-      - name: Build wheels
-        uses: pypa/cibuildwheel@f9b966cfadf4109556cadc5bb39ddb72d0ce664e # v4.3.5
-        env:
-          CIBW_BUILD: ${{ env.CIBW_BUILD_PATTERN }}
-          CIBW_SKIP: "*-musllinux_x86_64"
-          CIBW_ARCHS: "aarch64"
-          CIBW_ENVIRONMENT: >
-            PATH=$PATH:/usr/local/go/bin
-          CIBW_BEFORE_ALL_LINUX: |
-            curl -o go.tar.gz https://dl.google.com/go/go1.26.8.linux-arm64.tar.gz
-            tar -C /usr/local -xzf go.tar.gz
-            go install "github.com/go-python/gopy@$(go list -m -f '{{.Version}}' github.com/go-python/gopy)"
-            go install "golang.org/x/tools/cmd/goimports@$(go list -m -f '{{.Version}}' golang.org/x/tools)"
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
-        with:
-          name: wheels-linux-arm
+          name: wheels-linux-${{ matrix.arch }}-${{ matrix.libc }}
           path: ./wheelhouse/*.whl
 
   test:
-    needs: [ versions, build_macos, build_linux_x86_64, build_linux_arm ]
+    needs: [ versions, build_macos, build_linux ]
     name: Smoke test wheel (${{ matrix.os }}, Python 3.${{ matrix.python3_version }})
     strategy:
       fail-fast: false
