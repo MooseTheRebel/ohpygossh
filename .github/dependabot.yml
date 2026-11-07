@@ -4,6 +4,13 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # Go records `tool` directive deps as `// indirect` in go.mod, and
+    # Dependabot skips indirect deps by default. Setting `allow` replaces that
+    # default, so keep direct deps and add the tool modules by name.
+    allow:
+      - dependency-type: direct
+      - dependency-name: github.com/go-python/gopy
+      - dependency-name: golang.org/x/tools # goimports
     commit-message:
       prefix: "chore: " # satisfy conventional commit format
     cooldown:
