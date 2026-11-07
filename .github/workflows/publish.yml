@@ -76,7 +76,7 @@ jobs:
         - name: Collect all wheels
           run: |
             mkdir dist
-            for f in $(find . -type f -name '*.whl'); do mv ${f} dist; done;
+            find . -type f -name '*.whl' -not -path './dist/*' -exec mv {} dist/ \;
             ls -R dist
 
         # Publish with "trusted publisher" mechanism:

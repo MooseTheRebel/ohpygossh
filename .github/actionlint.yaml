@@ -1,0 +1,5 @@
+# actionlint does not yet understand the `$/` self-repository syntax zizmor requires.
+paths:
+  .github/workflows/{ci.yaml,publish.yml}:
+    ignore:
+      - 'reusable workflow call "\$/.+" at "uses" is not following the format'
