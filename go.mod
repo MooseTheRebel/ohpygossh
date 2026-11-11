@@ -10,7 +10,7 @@ require (
 )
 
 require (
-	github.com/go-python/gopy v0.5.0 // indirect
+	github.com/go-python/gopy v0.5.1 // indirect
 	github.com/gonuts/commander v0.1.0 // indirect
 	github.com/gonuts/flag v0.1.0 // indirect
 	github.com/kr/fs v0.1.0 // indirect
