@@ -2,7 +2,7 @@ module gohpygossh
 
 go 1.26.0
 
-require golang.org/x/crypto v0.58.0
+require golang.org/x/crypto v0.59.0
 
 require (
 	github.com/larstobi/go-multipass v1.3.0
@@ -17,7 +17,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	golang.org/x/mod v0.42.0 // indirect
 	golang.org/x/sync v0.24.0 // indirect
-	golang.org/x/sys v0.49.0 // indirect
+	golang.org/x/sys v0.50.0 // indirect
 	golang.org/x/telemetry v0.0.0-20261009151841-97e8ea77aa2a // indirect
 	golang.org/x/tools v0.52.0 // indirect
 )
