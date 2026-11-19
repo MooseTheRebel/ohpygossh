@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.3](https://github.com/MooseTheRebel/ohpygossh/compare/ohpygossh-v0.10.2...ohpygossh-v0.10.3) (2026-11-19)
+
+
+### Miscellaneous Chores
+
+* bump golang.org/x/crypto from 0.58.0 to 0.59.0 ([#146](https://github.com/MooseTheRebel/ohpygossh/issues/146)) ([e9f175b](https://github.com/MooseTheRebel/ohpygossh/commit/e9f175b0aa7c81245aaf6d668dcf0c4b276fbae7))
+
 ## [0.10.2](https://github.com/MooseTheRebel/ohpygossh/compare/ohpygossh-v0.10.1...ohpygossh-v0.10.2) (2026-11-12)
 
 
