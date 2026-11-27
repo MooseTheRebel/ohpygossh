@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.10.4](https://github.com/MooseTheRebel/ohpygossh/compare/ohpygossh-v0.10.3...ohpygossh-v0.10.4) (2026-11-27)
+
+
+### Miscellaneous Chores
+
+* bump actions/setup-go from 7.0.0 to 7.1.0 ([#155](https://github.com/MooseTheRebel/ohpygossh/issues/155)) ([cd934fc](https://github.com/MooseTheRebel/ohpygossh/commit/cd934fcd2da0b03187e92e9f5b46022f0723b189))
+* bump github.com/go-python/gopy from 0.5.1 to 0.6.0 ([#148](https://github.com/MooseTheRebel/ohpygossh/issues/148)) ([cedd7cb](https://github.com/MooseTheRebel/ohpygossh/commit/cedd7cbeb171e5c05462f1d5a11494046b98e6fd))
+
 ## [0.10.3](https://github.com/MooseTheRebel/ohpygossh/compare/ohpygossh-v0.10.2...ohpygossh-v0.10.3) (2026-11-19)
 
 
